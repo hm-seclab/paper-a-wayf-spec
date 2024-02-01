@@ -158,30 +158,31 @@ The following section introduces a extension for {{CTAP}} that introduces a new 
 ### Feature detection
 
 Extension identifier:
-: enterpriseFed
+: fedEntity
 
-This registration extension allows relying parties to mark a discoverable credential as belonging to a federation, i.e. the given relying party is a identity provider. The given extension defaults to false.
+This registration extension allows relying parties to specify an federation entity when creating a credential.
 
 ### Client extension
 
 #### Client extension input
 
-create(): A boolean value to indicate that this extension is requested by the Relying Party.
-
-get(): Not applicable.
+create(): A single USVString specifying the federation entity.
 
 ~~~~~~~~~~
 partial dictionary AuthenticationExtensionsClientInputs {
-  boolean credentialEnterpriseFederation = false;
+  USVString fedEntity;
 };
 ~~~~~~~~~~
 {: #figops title="Extension client input"}
 
 #### Client extension processing
 
-None, except creating the authenticator extension input from the client extension input.
+If this extension is present in an authenticatorMakeCredential request:
 
-NOTE: For non-discoverable credentials, the credentialEnterpriseFederation flag has no effect on the authenticators behaviour.
+1. Verify that the fedEntity string value is valid:
+    * TODO: verification criteria depend on the format (do we want UUID v4/v7 ?)
+
+NOTE: For non-discoverable credentials, the fedEntity has no effect on the authenticators behaviour.
 
 #### Client extension output
 
@@ -191,16 +192,16 @@ None. The authenticator returns the result in the authenticator extension output
 
 #### Authenticator extension input
 
-Boolean asking the authenticator to mark the creadential as belonging to an identity provider. The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:
+The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:
 
-* "enterpriseFed":\<enterpriseFed Value\>
+* "fedEntity":\<fedEntity Value\>
 
 NOTE: The extension SHOULD be ignored for non-discoverable credentials.
 
 ~~~~~~~~~~
 {
     ...
-    6: {"enterpriseFed": true},
+    6: {"fedEntity": "https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth"},
     ...
 }
 ~~~~~~~~~~
@@ -253,7 +254,7 @@ On success, authenticator returns the following structure in its response:
 
 | Parameter name | Data type | Definition |
 |:--------------:|:---------:|:----------:|
-| idp (0x01)     | PublicKeyCredentialRpEntity | IdP Information |
+| idp (0x01)     | Text String | IdP Information |
 | totalIdps (0x02) | Unsigned Integer | total number of IdPs present on the authenticator |
 
 ### enumerateIdPBegin (0x01)
@@ -272,19 +273,19 @@ Following operations are preformed to enumerate the identity providers present o
     5. The authenticator verifies that the pinUvAuthToken has the efed permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
     6. If no discoverable credentials exist on this authenticator, return CTAP2_ERR_NO_IDPS.
     7. Locate all credentials that are eligible for retrieval under the specified criteria:
-        1. Locate all discoverable credentials that are created by this authenticator that have the enterpriseFed flag set to true.
+        1. Locate all discoverable credentials that are created by this authenticator that have the fedEntity property.
         2. Create an applicable credentials list populated with the located credentials.
         3. Iterate through the applicable credentials list, and if credential protection for a credential is marked as userVerificationRequired or userVerificationOptionalWithCredentialIDList, and the pinUvAuthParam is missing from the input map, remove that credential from the applicable credentials list.
         4. If the applicable credentials list is empty, return CTAP2_ERR_NO_IDPS.
         5. Let numberOfIdPs be the number of applicable credentials found.
     8. Authenticator returns an authenticatorFederationManagement response with following parameters:
-        * idp (0x01): PublicKeyCredentialRpEntity, where the id field MUST be included and other fields MAY be included.
+        * idp (0x01): Text String, the content of fedEntity.
         * totalIdps (0x02): Total number of IdPs present on the authenticator. This can vary depending on if a pinUvAuthParam was sent with the request.
 * Platform on receiving more than 1 totalIdps, performs following procedure for (totalIdps - 1 ) number of times:
     * Platform sends authenticatorFederationManagement command with following parameters:
         * subCommand (0x01): enumerateIdPsGetNextIdP (0x02).
     * Authenticator on receiving such enumerateIdPsGetNextIdP subCommand returns authenticatorFederationManagement response with following parameters:
-        * idp (0x01): PublicKeyCredentialRpEntity, where the id field MUST be included and other fields MAY be included.
+        * idp (0x01): Text String, the content of fedEntity.
 
 # CTAP2 Status codes
 

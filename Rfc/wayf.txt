@@ -5,11 +5,11 @@
 Network Working Group                                          E. Kupris
 Internet-Draft                                                          
 Intended status: Informational                                 T. Hilbig
-Expires: 1 August 2024                                                  
+Expires: 4 August 2024                                                  
                                                              D. P. Sugar
                                                                         
                                                               T. Schreck
-                                                         29 January 2024
+                                                         1 February 2024
 
 
         Automated Where Are You From in Multilateral Federations
@@ -36,7 +36,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 1 August 2024.
+   This Internet-Draft will expire on 4 August 2024.
 
 Copyright Notice
 
@@ -53,9 +53,9 @@ Copyright Notice
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 1]
+Kupris, et al.            Expires 4 August 2024                 [Page 1]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
 
    This document is subject to BCP 78 and the IETF Trust's Legal
@@ -109,9 +109,9 @@ Table of Contents
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 2]
+Kupris, et al.            Expires 4 August 2024                 [Page 2]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
 
       protocol and is able to create new credentials and make assertions
@@ -160,44 +160,43 @@ Internet-Draft                   A-WAYF                     January 2024
 
 2.1.1.  Feature detection
 
-   Extension identifier:  enterpriseFed
+   Extension identifier:  fedEntity
 
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 3]
+Kupris, et al.            Expires 4 August 2024                 [Page 3]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
 
-   This registration extension allows relying parties to mark a
-   discoverable credential as belonging to a federation, i.e. the given
-   relying party is a identity provider.  The given extension defaults
-   to false.
+   This registration extension allows relying parties to specify an
+   federation entity when creating a credential.
 
 2.1.2.  Client extension
 
 2.1.2.1.  Client extension input
 
-   create(): A boolean value to indicate that this extension is
-   requested by the Relying Party.
-
-   get(): Not applicable.
+   create(): A single USVString specifying the federation entity.
 
    partial dictionary AuthenticationExtensionsClientInputs {
-     boolean credentialEnterpriseFederation = false;
+     USVString fedEntity;
    };
 
                       Figure 1: Extension client input
 
 2.1.2.2.  Client extension processing
 
-   None, except creating the authenticator extension input from the
-   client extension input.
+   If this extension is present in an authenticatorMakeCredential
+   request:
 
-   NOTE: For non-discoverable credentials, the
-   credentialEnterpriseFederation flag has no effect on the
-   authenticators behaviour.
+   1.  Verify that the fedEntity string value is valid:
+
+       *  TODO: verification criteria depend on the format (do we want
+          UUID v4/v7 ?)
+
+   NOTE: For non-discoverable credentials, the fedEntity has no effect
+   on the authenticators behaviour.
 
 2.1.2.3.  Client extension output
 
@@ -208,12 +207,11 @@ Internet-Draft                   A-WAYF                     January 2024
 
 2.1.3.1.  Authenticator extension input
 
-   Boolean asking the authenticator to mark the creadential as belonging
-   to an identity provider.  The platform sends the
-   authenticatorMakeCredential request with the following CBOR map entry
-   in the "extensions" field to the authenticator:
+   The platform sends the authenticatorMakeCredential request with the
+   following CBOR map entry in the "extensions" field to the
+   authenticator:
 
-   *  "enterpriseFed":<enterpriseFed Value>
+   *  "fedEntity":<fedEntity Value>
 
    NOTE: The extension SHOULD be ignored for non-discoverable
    credentials.
@@ -221,18 +219,20 @@ Internet-Draft                   A-WAYF                     January 2024
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 4]
+
+
+Kupris, et al.            Expires 4 August 2024                 [Page 4]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
 
-   {
-       ...
-       6: {"enterpriseFed": true},
-       ...
-   }
+{
+    ...
+    6: {"fedEntity": "https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth"},
+    ...
+}
 
-     Figure 2: Sample CTAP2 authenticatorMakeCredential Request (CBOR)
+  Figure 2: Sample CTAP2 authenticatorMakeCredential Request (CBOR)
 
 2.1.3.2.  Authenticator extension processing
 
@@ -277,9 +277,9 @@ Internet-Draft                   A-WAYF                     January 2024
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 5]
+Kupris, et al.            Expires 4 August 2024                 [Page 5]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
 
 4.1.  Prototype authenticatorFederationManagement (0x42)
@@ -333,22 +333,19 @@ Internet-Draft                   A-WAYF                     January 2024
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 6]
+Kupris, et al.            Expires 4 August 2024                 [Page 6]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
 
-      +===========+=============================+===================+
-      | Parameter |          Data type          |     Definition    |
-      |    name   |                             |                   |
-      +===========+=============================+===================+
-      |    idp    | PublicKeyCredentialRpEntity |  IdP Information  |
-      |   (0x01)  |                             |                   |
-      +-----------+-----------------------------+-------------------+
-      | totalIdps |       Unsigned Integer      |  total number of  |
-      |   (0x02)  |                             |  IdPs present on  |
-      |           |                             | the authenticator |
-      +-----------+-----------------------------+-------------------+
+     +==================+=============+==============================+
+     |  Parameter name  |  Data type  |          Definition          |
+     +==================+=============+==============================+
+     |    idp (0x01)    | Text String |       IdP Information        |
+     +------------------+-------------+------------------------------+
+     | totalIdps (0x02) |   Unsigned  | total number of IdPs present |
+     |                  |   Integer   |     on the authenticator     |
+     +------------------+-------------+------------------------------+
 
                                   Table 4
 
@@ -386,23 +383,22 @@ Internet-Draft                   A-WAYF                     January 2024
       5.  The authenticator verifies that the pinUvAuthToken has the
           efed permission.  If not, return CTAP2_ERR_PIN_AUTH_INVALID.
 
-
-
-
-Kupris, et al.            Expires 1 August 2024                 [Page 7]
-
-Internet-Draft                   A-WAYF                     January 2024
-
-
       6.  If no discoverable credentials exist on this authenticator,
           return CTAP2_ERR_NO_IDPS.
+
+
+
+
+Kupris, et al.            Expires 4 August 2024                 [Page 7]
+
+Internet-Draft                   A-WAYF                    February 2024
+
 
       7.  Locate all credentials that are eligible for retrieval under
           the specified criteria:
 
           1.  Locate all discoverable credentials that are created by
-              this authenticator that have the enterpriseFed flag set to
-              true.
+              this authenticator that have the fedEntity property.
 
           2.  Create an applicable credentials list populated with the
               located credentials.
@@ -423,8 +419,7 @@ Internet-Draft                   A-WAYF                     January 2024
       8.  Authenticator returns an authenticatorFederationManagement
           response with following parameters:
 
-          -  idp (0x01): PublicKeyCredentialRpEntity, where the id field
-             MUST be included and other fields MAY be included.
+          -  idp (0x01): Text String, the content of fedEntity.
 
           -  totalIdps (0x02): Total number of IdPs present on the
              authenticator.  This can vary depending on if a
@@ -442,16 +437,18 @@ Internet-Draft                   A-WAYF                     January 2024
          subCommand returns authenticatorFederationManagement response
          with following parameters:
 
+         o  idp (0x01): Text String, the content of fedEntity.
 
 
 
-Kupris, et al.            Expires 1 August 2024                 [Page 8]
+
+
+
+
+Kupris, et al.            Expires 4 August 2024                 [Page 8]
 
-Internet-Draft                   A-WAYF                     January 2024
+Internet-Draft                   A-WAYF                    February 2024
 
-
-         o  idp (0x01): PublicKeyCredentialRpEntity, where the id field
-            MUST be included and other fields MAY be included.
 
 5.  CTAP2 Status codes
 
@@ -496,20 +493,18 @@ Internet-Draft                   A-WAYF                     January 2024
 
 7.2.  Informative References
 
-
-
-
-
-
-Kupris, et al.            Expires 1 August 2024                 [Page 9]
-
-Internet-Draft                   A-WAYF                     January 2024
-
-
    [WebAuthn] Hodges, J., Jones, J. C., Jones, M. B., Kumar, A., and E.
               Lundberg, "Web Authentication An API for accessing Public
               Key Credentials Level 2", 8 April 2021,
               <https://www.w3.org/TR/webauthn/>.
+
+
+
+
+Kupris, et al.            Expires 4 August 2024                 [Page 9]
+
+Internet-Draft                   A-WAYF                    February 2024
+
 
 Authors' Addresses
 
@@ -557,4 +552,9 @@ Authors' Addresses
 
 
 
-Kupris, et al.            Expires 1 August 2024                [Page 10]
+
+
+
+
+
+Kupris, et al.            Expires 4 August 2024                [Page 10]
