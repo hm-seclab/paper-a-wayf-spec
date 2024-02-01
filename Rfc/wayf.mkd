@@ -1,0 +1,299 @@
+---
+coding: utf-8
+
+title: Automated Where Are You From in Multilateral Federations
+abbrev: A-WAYF
+docname: draft-awayf-00
+category: info
+ipr: trust200902
+
+stand_alone: yes
+pi: [toc, sortrefs, symrefs, comments]
+
+author:
+  -
+    ins: E. Kupris
+    name: Erwin Kupris
+    email: erwin.kupris@hm.edu
+  -
+    ins: T. Hilbig
+    name: Tobias Hilbig
+    email: tobias.hilbig@hm.edu
+  -
+    ins: D. P. Sugar
+    name: David Pierre Sugar
+    email: sugar@hm.edu
+  -
+    ins: T. Schreck
+    name: Thomas Schreck
+    email: thomas.schreck@hm.edu
+
+normative:
+    RFC2119:
+        target: https://www.rfc-editor.org/info/rfc2119 
+        title: Key words for use in RFCs to Indicate Requirement Levels
+        author:
+            -
+                ins: S. Bradner
+                name: Scott Bradner
+                org: Harvard University
+        date: 1997-03
+    RFC8174:
+        target: https://www.rfc-editor.org/info/rfc8174
+        title: Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words
+        author:
+            -
+                ins: B. Leiba
+                name: Barry Leiba
+                org: Huawei Technologies
+        date: 2017-05
+    CTAP:
+        target: https://fidoalliance.org/specs/fido-v2.2-rd-20230321/fido-client-to-authenticator-protocol-v2.2-rd-20230321.html#getPinUvAuthTokenUsingPinWithPermissions
+        title: Client to Authenticator Protocol (CTAP)
+        author:
+            -
+                ins: J. Bradley
+                name: John Bradley
+                org: Yubico
+            -
+                ins: J. Hodges
+                name: Jeff Hodges
+                org: Google
+            -
+                ins: M. B. Jones
+                name: Michael B. Jones
+                org: Microsoft
+            -
+                ins: A. Kumar
+                name: Akshay Kumar
+                org: Microsoft
+            -
+                ins: R. Lindemann
+                name: Rolf Lindemann
+                org: Nok Nok Labs
+            -
+                ins: J. Verrept
+                name: Johan Verrept
+                org: OneSpan
+        date: 2023-03-21
+
+informative:
+    WebAuthn:
+        target: https://www.w3.org/TR/webauthn/
+        title: Web Authentication An API for accessing Public Key Credentials Level 2
+        author:
+            -
+                ins: J. Hodges
+                name: Jeff Hodges
+                org: Google
+            -
+                ins: J. C. Jones
+                name: J. C. Jones
+                org: Mozilla
+            -
+                ins: M. B. Jones
+                name: Michael B. Jones
+                org: Microsoft
+            -
+                ins: A. Kumar
+                name: Akshay Kumar
+                org: Microsoft
+            -
+                ins: E. Lundberg
+                name: Emil Lundberg
+                org: Yubico
+        date: 2021-04-08
+
+--- abstract
+
+This document introduces a extension to the CTAP2 protocol that
+allows the storage of enterprise federation credentials and the
+enumeration of their corresponding identity providers.
+
+--- middle
+
+# Introduction
+
+## Requirements
+
+## Terminology
+
+The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT", "SHOULD", 
+"SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and "OPTIONAL" in this document 
+are to be interpreted as described in BCP 14 {{RFC2119}} {{RFC8174}} when, and only when, they appear in all 
+capitals, as shown here.
+
+The term "byte" is used in its now-customary sense as a synonym for "octet". 
+
+This document makes use of the following terminology:
+
+authenticator: 
+: An Authenticator is software that implements the CTAP protocol and is able to create new credentials and make assertions on request. It interacts with a Client through a communication channel like CTAPHID, which builds on top of USB HID.
+
+client: 
+: A Client is software that implements the client-side part of the CTAP protocol. It acts as a middleman between a Authenticator and a Relying Party.
+
+RP: 
+: A Relying Party (RP) is a web-service one can authenticate to using the FIDO authentication protocol. It communicates indirectly with an Authenticator through the Client and is responsible for initiating a authentication ceremony.
+
+confidentiality: 
+: Confidentiality relates to the state of data in which only authorized entities can comprehend its content. Typically, this is ensured through encryption, where only the possessor of the correct secret key can decrypt the data and gain access to its actual content.
+
+integrity: 
+: Integrity pertains to the condition of data wherein no unauthorized alterations have occurred. Unintended modifications may occur inadvertently, such as a bit-flip resulting from hardware failure, or intentionally by an adversary with access to the data. The concept of "protecting data integrity" encompasses the ability to identify undesired changes before they can impact a system in any conceivable manner.
+
+authenticity: 
+: Authenticity denotes the ability to confirm that specific data has been generated by a particular source. This validation can be implemented through cryptographic concepts such as digital signatures or Message Authentication Codes. Frequently, a single cryptographic primitive can be employed to ensure both integrity and authenticity.
+
+identity provider:
+: A identity provider TODO
+
+
+# CTAP2 Extension
+
+The following section introduces a extension for {{CTAP}} that introduces a new field enterpriseFed which marks a credential as belonging to an identity provider.
+
+## Enterprise Federation (enterpriseFed)
+
+### Feature detection
+
+Extension identifier:
+: enterpriseFed
+
+This registration extension allows relying parties to mark a discoverable credential as belonging to a federation, i.e. the given relying party is a identity provider. The given extension defaults to false.
+
+### Client extension
+
+#### Client extension input
+
+create(): A boolean value to indicate that this extension is requested by the Relying Party.
+
+get(): Not applicable.
+
+~~~~~~~~~~
+partial dictionary AuthenticationExtensionsClientInputs {
+  boolean credentialEnterpriseFederation = false;
+};
+~~~~~~~~~~
+{: #figops title="Extension client input"}
+
+#### Client extension processing
+
+None, except creating the authenticator extension input from the client extension input.
+
+NOTE: For non-discoverable credentials, the credentialEnterpriseFederation flag has no effect on the authenticators behaviour.
+
+#### Client extension output
+
+None. The authenticator returns the result in the authenticator extension output.
+
+### Authenticator extension
+
+#### Authenticator extension input
+
+Boolean asking the authenticator to mark the creadential as belonging to an identity provider. The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:
+
+* "enterpriseFed":\<enterpriseFed Value\>
+
+NOTE: The extension SHOULD be ignored for non-discoverable credentials.
+
+~~~~~~~~~~
+{
+    ...
+    6: {"enterpriseFed": true},
+    ...
+}
+~~~~~~~~~~
+{: #figops2 title="Sample CTAP2 authenticatorMakeCredential Request (CBOR)"}
+
+#### Authenticator extension processing
+
+The authenticator checks whether the authenticatorMakeCredential's options.rk option is present and true. If so, the authenticator stores the given information with the created credential. If not, the authenticator SHOULD ignore the extension.
+
+#### Authenticator extension output
+
+If the authenticator has set the extensions value for the credential:
+
+* "enterpriseFed":\<enterpriseFed Value\>
+
+Else:
+
+* None.
+
+# CTAP2 efed pinUvAuthToken permission
+
+The following pinUvAuthToken permission extends the list of existing pinUvAuthTokens.
+
+| Permission name | Role | Value | RP ID | Definition |
+|:---------------:|:----:|:-----:|:-----:|----------|
+| efed    | Enumerate Identity Providers | 0x40 | Ignored | This allows the pinUvAuthToken to be used with the authenticatorFederationManagement command. The rpId parameter is ignored for this permission. |
+
+# CTAP2 Command
+
+## Prototype authenticatorFederationManagement (0x42)
+
+This command is used by the platform to manage federated credentials on the authenticator.
+
+It takes the following input parameters:
+
+| Parameter name | Data type | Required? | Definition |
+|:--------------:|:---------:|:---------:|----------|
+| subCommand (0x01) | Unsigned Integer | Required | subCommand currently being requested |
+| pinUvAuthProtocol (0x02) | Unsigned Integer | Optional | PIN/UV protocol version selected by platform. |
+| pinUvAuthParam (0x03) | Byte String | Optional | Result of calling authenticate(pinUvAuthToken, Prototype authenticatorFederationManagement (0x42)) |
+
+The list of sub commands for credential management is:
+
+| subCommand Name | subCommand Number |
+|:---------------:|:-----------------:|
+|  enumerateIdPBegin | 0x01 |
+| enumerateIdPsGetNextIdP | 0x02 |
+
+On success, authenticator returns the following structure in its response:
+
+| Parameter name | Data type | Definition |
+|:--------------:|:---------:|:----------:|
+| idp (0x01)     | PublicKeyCredentialRpEntity | IdP Information |
+| totalIdps (0x02) | Unsigned Integer | total number of IdPs present on the authenticator |
+
+### enumerateIdPBegin (0x01)
+
+Following operations are preformed to enumerate the identity providers present on the authenticator:
+
+* Optionally, the platform gets a pinUvAuthToken from the authenticator with the efed permission.
+* The Platform sends a authenticatorEnumerateIdP command with the following parameters:
+    * pinUvAuthProtocol (0x01): as selected when getting the shared secret (Optional).
+    * pinUvAuthParam (0x02): authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42)) (Optional). 
+* Authenticator on receiving such request performs following procedures:
+    1. If pinUvAuthParam is missing from the input map, go to 6.
+    2. If pinUvAuthProtocol is not supported, return CTAP1_ERR_INVALID_PARAMETER.
+    3. Authenticator calls verify(pinUvAuthToken, authenticatorFederationManagement (0x42), pinUvAuthParam).
+    4. If pinUvAuthParam verification fails, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
+    5. The authenticator verifies that the pinUvAuthToken has the efed permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
+    6. If no discoverable credentials exist on this authenticator, return CTAP2_ERR_NO_IDPS.
+    7. Locate all credentials that are eligible for retrieval under the specified criteria:
+        1. Locate all discoverable credentials that are created by this authenticator that have the enterpriseFed flag set to true.
+        2. Create an applicable credentials list populated with the located credentials.
+        3. Iterate through the applicable credentials list, and if credential protection for a credential is marked as userVerificationRequired or userVerificationOptionalWithCredentialIDList, and the pinUvAuthParam is missing from the input map, remove that credential from the applicable credentials list.
+        4. If the applicable credentials list is empty, return CTAP2_ERR_NO_IDPS.
+        5. Let numberOfIdPs be the number of applicable credentials found.
+    8. Authenticator returns an authenticatorFederationManagement response with following parameters:
+        * idp (0x01): PublicKeyCredentialRpEntity, where the id field MUST be included and other fields MAY be included.
+        * totalIdps (0x02): Total number of IdPs present on the authenticator. This can vary depending on if a pinUvAuthParam was sent with the request.
+* Platform on receiving more than 1 totalIdps, performs following procedure for (totalIdps - 1 ) number of times:
+    * Platform sends authenticatorFederationManagement command with following parameters:
+        * subCommand (0x01): enumerateIdPsGetNextIdP (0x02).
+    * Authenticator on receiving such enumerateIdPsGetNextIdP subCommand returns authenticatorFederationManagement response with following parameters:
+        * idp (0x01): PublicKeyCredentialRpEntity, where the id field MUST be included and other fields MAY be included.
+
+# CTAP2 Status codes
+
+This extension also introduces a new status code that has to be added
+to the table of available status codes.
+
+| Code | Name | Description |
+|:----:|:----:|:-----------:|
+| 0xE0 | CTAP2_ERR_NO_IDPS | There are no available IdPs. This can have two reasons: 1) there are really no discoverable credentials marked as federation key 2) there are federation credentials that have a credential protection policy greater than optional but the client didn't provide a pinUvAuthToken. |
+
+# Security Considerations
+
