@@ -15,14 +15,23 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
-    const exe = b.addExecutable(.{
-        .name = "non-browser-poc",
-        // In this case the main source file is merely a path, however, in more
-        // complicated build scripts, this could be a generated file.
-        .root_source_file = .{ .path = "src/main.zig" },
+    const keylib_dep = b.dependency("keylib", .{
         .target = target,
         .optimize = optimize,
     });
+
+    const exe = b.addExecutable(.{
+        .name = "authenticator",
+        // In this case the main source file is merely a path, however, in more
+        // complicated build scripts, this could be a generated file.
+        .root_source_file = .{ .path = "src/authenticator.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    exe.addModule("keylib", keylib_dep.module("keylib"));
+    exe.addModule("uhid", keylib_dep.module("uhid"));
+    exe.addModule("zbor", keylib_dep.module("zbor"));
+    exe.linkLibC();
 
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
@@ -55,7 +64,7 @@ pub fn build(b: *std.Build) void {
     // Creates a step for unit testing. This only builds the test executable
     // but does not run it.
     const unit_tests = b.addTest(.{
-        .root_source_file = .{ .path = "src/main.zig" },
+        .root_source_file = .{ .path = "src/authenticator.zig" },
         .target = target,
         .optimize = optimize,
     });

@@ -1,7 +1,6 @@
 .{
     .name = "a-wayf",
     .version = "0.1.0",
-
     .dependencies = .{
         .keylib = .{
             .url = "https://github.com/r4gus/keylib/archive/client.tar.gz",
