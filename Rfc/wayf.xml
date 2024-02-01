@@ -342,7 +342,7 @@ to the table of available status codes.</t>
       <ttcol align='center'>Code</ttcol>
       <ttcol align='center'>Name</ttcol>
       <ttcol align='center'>Description</ttcol>
-      <c>0xE0</c>
+      <c>0xE1</c>
       <c>CTAP2_ERR_NO_IDPS</c>
       <c>There are no available IdPs. This can have two reasons: 1) there are really no discoverable credentials marked as federation key 2) there are federation credentials that have a credential protection policy greater than optional but the client didn't provide a pinUvAuthToken.</c>
 </texttable>
@@ -528,10 +528,10 @@ g7StialiMA45u4uWqzANFRm0Wchh9YrGctGeNKgOWw+vkxL6C9J/kYD4VwE0
 ZF/QlNMN65huZITOaB0ZSy6oWWumVL2QRQmry3unes1dyw8RJ43Kh8/WMcb/
 fnO+Hh49aJ3Lqrmsi/86qXhtJ/k6D210PoOdPNh5oSIPL9XzXbu0BNbA+79H
 Xd0/39vIltQBJ9L4brj9JsDozXcepnmkStbGDwGiJJFJ4GeMlqOSYnSB8sxf
-Wo+6EQi9QgLT9t3OOf89Rt7pAtamGy3ef/zrBc0pNjIITyzoLS3VGpTURjy5
-phUirsgsNcwdGU1/OYQWwtaP4iq9nXyuKDc5vPUGgt759tsb7fjTnabQRTvK
-Rq6R21ZiykWucEGnq3Z2XNrWnyZAxyT7na16hA2K74cm9xLdO1XTM3pT3/yJ
-fvBPecnRg/cvAAA=
+Wo+6EQi9QgLT9t3OOf89Rt7pAtamGy3ef/zrBRqZzQzCEwt6S0u1BiW1EU+u
+aYWIKzJLDXNHRtNfDqGFsPWjuEpvJ58ryk0Ob72BoHe+/fZGO/50pyl00Y6y
+kWvktpWYcpErXNDpqp0dl7b1pwnQMcl+Z6seYYPi+6HJvUT3TtX0jN7UN3+i
+H/wT2vAXnfcvAAA=
 
 -->
 

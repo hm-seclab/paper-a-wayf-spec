@@ -458,7 +458,7 @@ Internet-Draft                   A-WAYF                    February 2024
     +======+===================+======================================+
     | Code |        Name       |             Description              |
     +======+===================+======================================+
-    | 0xE0 | CTAP2_ERR_NO_IDPS |  There are no available IdPs.  This  |
+    | 0xE1 | CTAP2_ERR_NO_IDPS |  There are no available IdPs.  This  |
     |      |                   |  can have two reasons: 1) there are  |
     |      |                   |  really no discoverable credentials  |
     |      |                   |  marked as federation key 2) there   |

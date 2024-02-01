@@ -294,7 +294,7 @@ to the table of available status codes.
 
 | Code | Name | Description |
 |:----:|:----:|:-----------:|
-| 0xE0 | CTAP2_ERR_NO_IDPS | There are no available IdPs. This can have two reasons: 1) there are really no discoverable credentials marked as federation key 2) there are federation credentials that have a credential protection policy greater than optional but the client didn't provide a pinUvAuthToken. |
+| 0xE1 | CTAP2_ERR_NO_IDPS | There are no available IdPs. This can have two reasons: 1) there are really no discoverable credentials marked as federation key 2) there are federation credentials that have a credential protection policy greater than optional but the client didn't provide a pinUvAuthToken. |
 
 # Security Considerations
 
