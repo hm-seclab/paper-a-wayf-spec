@@ -1,0 +1,11 @@
+.{
+    .name = "a-wayf",
+    .version = "0.1.0",
+
+    .dependencies = .{
+        .keylib = .{
+            .url = "https://github.com/r4gus/keylib/archive/client.tar.gz",
+            .hash = "12207ff27aa0585feb024d225f5afe7ecd18667c1d599d7080be7460574c7f15dff4",
+        },
+    },
+}
