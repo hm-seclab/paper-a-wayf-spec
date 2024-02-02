@@ -9,6 +9,14 @@ const allocator = gpa.allocator();
 pub fn main() !void {
     var auth = keylib.ctap.authenticator.Auth{
         .callbacks = callbacks,
+        .commands = &.{
+            .{ .cmd = 0x01, .cb = keylib.ctap.commands.authenticator.authenticatorMakeCredential },
+            .{ .cmd = 0x02, .cb = keylib.ctap.commands.authenticator.authenticatorGetAssertion },
+            .{ .cmd = 0x04, .cb = keylib.ctap.commands.authenticator.authenticatorGetInfo },
+            .{ .cmd = 0x06, .cb = keylib.ctap.commands.authenticator.authenticatorClientPin },
+            .{ .cmd = 0x0b, .cb = keylib.ctap.commands.authenticator.authenticatorSelection },
+            .{ .cmd = 0x42, .cb = keylib.ctap.commands.authenticator.authenticatorFederationManagement },
+        },
         .settings = .{
             .versions = &.{ .FIDO_2_0, .FIDO_2_1 },
             .extensions = &.{ .credProtect, .fedEntity },
