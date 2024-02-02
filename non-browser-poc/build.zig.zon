@@ -3,8 +3,8 @@
     .version = "0.1.0",
     .dependencies = .{
         .keylib = .{
-            .url = "http://localhost:57659/1",
-            .hash = "1220ca00627411b44d80682005426fb3f54210eb6d5b0b246d377958d66a76c4ea58",
+            .url = "https://github.com/r4gus/keylib/archive/client.tar.gz",
+            .hash = "12207ff27aa0585feb024d225f5afe7ecd18667c1d599d7080be7460574c7f15dff4",
         },
     },
 }
