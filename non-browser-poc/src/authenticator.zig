@@ -10,16 +10,16 @@ pub fn main() !void {
     var auth = keylib.ctap.authenticator.Auth{
         .callbacks = callbacks,
         .commands = &.{
-            .{ .cmd = 0x01, .cb = keylib.ctap.commands.authenticator.authenticatorMakeCredential },
+            .{ .cmd = 0x01, .cb = authenticatorMakeCredential },
             .{ .cmd = 0x02, .cb = keylib.ctap.commands.authenticator.authenticatorGetAssertion },
             .{ .cmd = 0x04, .cb = keylib.ctap.commands.authenticator.authenticatorGetInfo },
             .{ .cmd = 0x06, .cb = keylib.ctap.commands.authenticator.authenticatorClientPin },
             .{ .cmd = 0x0b, .cb = keylib.ctap.commands.authenticator.authenticatorSelection },
-            .{ .cmd = 0x42, .cb = keylib.ctap.commands.authenticator.authenticatorFederationManagement },
+            .{ .cmd = 0x42, .cb = authenticatorFederationManagement },
         },
         .settings = .{
             .versions = &.{ .FIDO_2_0, .FIDO_2_1 },
-            .extensions = &.{ .credProtect, .fedEntity },
+            .extensions = &.{ "credProtect", "fedEntity" },
             .aaguid = "\x6f\x15\x82\x74\xaa\xb6\x44\x3d\x9b\xcf\x8a\x3f\x69\x29\x7c\x88".*,
             .options = .{
                 .credMgmt = false,
@@ -81,6 +81,13 @@ pub fn main() !void {
         std.time.sleep(10000000);
     }
 }
+
+// /////////////////////////////////////////
+// fedManagement extension
+// /////////////////////////////////////////
+
+const authenticatorFederationManagement = @import("fed_management_extension/authenticatorFederationManagement.zig").authenticatorFederationManagement;
+const authenticatorMakeCredential = @import("make_credential/AuthenticatorMakeCredential.zig").authenticatorMakeCredential;
 
 // /////////////////////////////////////////
 // Data
