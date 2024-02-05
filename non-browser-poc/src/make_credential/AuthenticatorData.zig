@@ -56,4 +56,8 @@ pub fn encode(self: *const @This(), out: anytype) !void {
     if (self.attestedCredentialData) |acd| {
         try acd.encode(out);
     }
+
+    //if (self.extensions) |ext| {
+    //    try cbor.stringify(ext, .{}, out);
+    //}
 }

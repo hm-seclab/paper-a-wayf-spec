@@ -54,3 +54,25 @@ exit 0
 ```
 
 ## Client
+
+You can run the client by executing `./zig-out/bin/authenticator`. The POC client will use the first authenticator available via USB.
+
+## Example Output
+
+Authenticator:
+```
+./zig-out/bin/authenticator
+info: Auth.init: no settings found
+info: Auth.init: generating new settings...
+info: writing (53657474696e6773, Root): a66a70696e5265747269657308697576526574726965730870666f7263655f70696e5f6368616e6765f46e6d696e5f70696e5f6c656e6774680469616c776179735f7576f46b75736167655f636f756e7400
+info: Auth.init: new settings persisted
+info: request(66): a101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+info: response(66): 00a201583168747470733a2f2f7368692d696470322e727a2e66682d6d75656e6368656e2e64652f6964702f73686962626f6c6574680201
+```
+
+Client:
+```
+./zig-out/bin/client
+info: [0]: https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth, 1
+```
+

@@ -7,6 +7,13 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 const allocator = gpa.allocator();
 
 pub fn main() !void {
+    // a static credential to work with
+    try data_set.append(.{
+        .id = "\xb4\x40\xa4\xed\x80\x92\xe6\x9b\x19\x25\x2d\x25\x84\xc2\xa4\xce\x56\x38\x66\xd6\x4d\xb3\x13\x4e\x48\xd6\x1b\xc2\xb9\x32\xae\x23",
+        .rp = "passkey.org",
+        .data = "A96269645820B440A4ED8092E69B19252D2584C2A4CE563866D64DB3134E48D61BC2B932AE236475736572A26269644C0C430EFFFF5F5F5F44454D4F646E616D65677061747269636B627270A16269646B706173736B65792E6F72676A7369676E5F636F756E740063616C676545733235366B707269766174655F6B657958201BA2453ED863B547C93AE1B2244459F2E403FC8E951B15F458335DFB3C80397467637265617465641B0000018D75C3FDC86C646973636F76657261626C65F56A657874656E73696F6E7382A26565787449644B6372656450726F746563746865787456616C7565581875736572566572696669636174696F6E4F7074696F6E616CA265657874496449666564456E746974796865787456616C7565583168747470733A2F2F7368692D696470322E727A2E66682D6D75656E6368656E2E64652F6964702F73686962626F6C657468",
+    });
+
     var auth = keylib.ctap.authenticator.Auth{
         .callbacks = callbacks,
         .commands = &.{
@@ -181,7 +188,7 @@ pub fn my_read(
 
         entries.deinit();
         return Error.DoesNotExist;
-    } else if (rp == null) {
+    } else if (rp != null) {
         // get all associated with id
         const rp_ = rp[0..strlen(rp)];
 
@@ -194,13 +201,13 @@ pub fn my_read(
 
                 entries.append(d) catch unreachable;
             }
+        }
 
-            if (entries.items.len > 0) {
-                entries.append(null) catch unreachable;
-                const o = entries.toOwnedSlice() catch unreachable;
-                out.* = o.ptr;
-                return Error.SUCCESS;
-            }
+        if (entries.items.len > 0) {
+            entries.append(null) catch unreachable;
+            const o = entries.toOwnedSlice() catch unreachable;
+            out.* = o.ptr;
+            return Error.SUCCESS;
         }
 
         entries.deinit();
@@ -216,13 +223,13 @@ pub fn my_read(
 
                 entries.append(d) catch unreachable;
             }
+        }
 
-            if (entries.items.len > 0) {
-                entries.append(null) catch unreachable;
-                const o = entries.toOwnedSlice() catch unreachable;
-                out.* = o.ptr;
-                return Error.SUCCESS;
-            }
+        if (entries.items.len > 0) {
+            entries.append(null) catch unreachable;
+            const o = entries.toOwnedSlice() catch unreachable;
+            out.* = o.ptr;
+            return Error.SUCCESS;
         }
 
         entries.deinit();
