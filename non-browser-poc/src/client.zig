@@ -10,33 +10,80 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
 
 pub fn main() !void {
-    // Get all devices connect to the platform
-    var transports = try client.Transports.enumerate(allocator, .{});
-    defer transports.deinit();
-
-    // Choose a device
-    if (transports.devices.len == 0) {
-        std.log.err("No device found, exiting...", .{});
-        return;
-    }
-
-    var device = &transports.devices[0];
-    try device.open();
-    defer device.close();
-
-    var idp = try fedManaement.enumerateIdPBegin(device, allocator);
-    if (idp) |idp_| {
-        defer idp_.deinit(allocator);
-        std.log.info("[0]: {s}, {s}, {d}", .{ idp_.idpId.?, idp_.rpId.?, idp_.totalIdps.? });
-    } else {
-        std.log.warn("no valid IdP found", .{});
-        return;
-    }
+    _ = try navigator.credential.resolveWAYF(
+        &.{ "sso.hm.edu", "idp.orga.edu", "idp.orgb.edu" },
+        &.{ &.{ "sp.orga.edu", "fake-org.net" }, &.{ "sp.orga.edu", "orga.edu", "hm.edu" } },
+        "OIDfed",
+    );
 }
 
-pub const fedManaement = struct {
+pub const navigator = struct {
+    pub const credential = struct {
+        /// Execute a A-WAYF process.
+        ///
+        /// # Arguments
+        ///
+        /// * `idp_list` - List of supported IdPs, e.g., ["idp.orga.edu", "idp.orgb.edu"].
+        /// * `trust_statements` - List of JSON Web Tokens that build a trust chain.
+        /// * `fed_protocol` - Federation protocol to use, e.g., "OIDfed".
+        ///
+        /// # Returns
+        ///
+        /// TODO
+        pub fn resolveWAYF(
+            idp_list: fedManagement.IdPList,
+            trust_statements: fedManagement.TrustStatements,
+            fed_protocol: []const u8,
+        ) !?[]const u8 {
+            _ = idp_list;
+            _ = trust_statements;
+            _ = fed_protocol;
+
+            // ##########################################
+            // Step 2 -  Credentials Enumeration
+            // ##########################################
+
+            // Get all devices connect to the platform
+            var transports = try client.Transports.enumerate(allocator, .{});
+            defer transports.deinit();
+
+            // Choose a device
+            if (transports.devices.len == 0) {
+                std.log.err("No device found, exiting...", .{});
+                return null;
+            }
+
+            var device = &transports.devices[0];
+            try device.open();
+            defer device.close();
+
+            var idp = try fedManagement.enumerateIdPBegin(device, allocator);
+            if (idp) |idp_| {
+                defer idp_.deinit(allocator);
+                std.log.info("[0]: {s}, {s}, {d}", .{ idp_.idpId.?, idp_.rpId.?, idp_.totalIdps.? });
+            } else {
+                std.log.warn("no valid IdP found", .{});
+                return null;
+            }
+
+            // ##########################################
+            // Step 3 – Trusted IdP Selection
+            // ##########################################
+
+            // Step 3.1 – IdP Matching:
+
+            // Step 3.2 – Trust Resolve:
+
+            return null;
+        }
+    };
+};
+
+pub const fedManagement = struct {
     const FederationManagementRequest = @import("fed_management_extension/FederationManagementRequest.zig");
-    const FederationManagementResponse = @import("fed_management_extension/FederationManagementResponse.zig");
+    pub const FederationManagementResponse = @import("fed_management_extension/FederationManagementResponse.zig");
+    pub const IdPList = []const []const u8;
+    pub const TrustStatements = []const []const []const u8; // TODO: implement support of JSON Web Tokens
 
     pub fn enumerateIdPBegin(
         t: *Transport,
