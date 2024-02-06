@@ -7,6 +7,11 @@ const FederationManagementResponse = @import("FederationManagementResponse.zig")
 
 const ctap2_err_no_idps = fido.ctap.StatusCodes.ctap2_err_extension_2;
 
+const FedTuple = struct {
+    rpId: []const u8,
+    idpId: []const u8,
+};
+
 pub fn authenticatorFederationManagement(
     auth: *fido.ctap.authenticator.Auth,
     request: []const u8,
@@ -25,8 +30,7 @@ pub fn authenticatorFederationManagement(
 
     switch (fmp.subCommand) {
         .enumerateIdPBegin => {
-            var uv: bool = true; // TODO: this should default to false
-            // TODO: optionally validate pinUvAuthParam
+            // TODO: validate pinUvAuthParam
 
             // First we collect all credentials available
             var credentials = std.ArrayList(fido.ctap.authenticator.Credential).fromOwnedSlice(
@@ -43,25 +47,15 @@ pub fn authenticatorFederationManagement(
                 credentials.deinit();
             }
 
-            // Now we filter out all credentials without fedEntity
+            // Now we filter out all credentials without idpId
             var i: usize = 0;
             while (true) {
                 const l = credentials.items.len;
                 if (i >= l) break;
 
-                const fedEntity = credentials.items[i].getExtensions("fedEntity");
+                const fedEntity = credentials.items[i].getExtensions("idpId");
 
                 if (fedEntity == null) {
-                    const item = credentials.swapRemove(i);
-                    item.deinit(auth.allocator);
-                    continue;
-                }
-
-                // We also filter out credentials if their policy
-                // would be violated otherwise.
-                const policy_ = fido.ctap.extensions.CredentialCreationPolicy.fromString(credentials.items[i].getExtensions("credProtect"));
-                const policy = if (policy_) |policy| policy else fido.ctap.extensions.CredentialCreationPolicy.userVerificationOptional;
-                if (policy != .userVerificationOptional and !uv) {
                     const item = credentials.swapRemove(i);
                     item.deinit(auth.allocator);
                     continue;
@@ -75,18 +69,19 @@ pub fn authenticatorFederationManagement(
             }
 
             var rv = FederationManagementResponse{
-                .idp = credentials.items[0].getExtensions("fedEntity").?,
+                .rpId = credentials.items[0].rp.id,
+                .idpId = credentials.items[0].getExtensions("idpId").?,
                 .totalIdps = @intCast(credentials.items.len),
             };
 
             if (credentials.items.len > 1) {
-                var idps = std.ArrayList([]const u8).init(auth.allocator);
+                var idps = std.ArrayList(FedTuple).init(auth.allocator);
                 defer idps.deinit();
 
                 for (credentials.items[1..]) |cred| {
                     // It's ok not to dupe the slice because we will
                     // serialize it during the next step.
-                    idps.append(cred.getExtensions("fedEntity").?) catch {
+                    idps.append(.{ .idpId = cred.getExtensions("idpId").?, .rpId = cred.rp.id }) catch {
                         std.log.err("federationManagement: out of memory", .{});
                         return fido.ctap.StatusCodes.ctap1_err_other;
                     };
@@ -100,7 +95,7 @@ pub fn authenticatorFederationManagement(
                 auth.data_set = .{
                     .command = 0x42,
                     .start = auth.milliTimestamp(),
-                    .key = "fedEntity",
+                    .key = "federationId",
                     .value = list.toOwnedSlice() catch {
                         std.log.err("federationManagement: unable to persist idp slice", .{});
                         return fido.ctap.StatusCodes.ctap1_err_other;

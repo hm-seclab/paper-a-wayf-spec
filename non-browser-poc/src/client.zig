@@ -26,8 +26,8 @@ pub fn main() !void {
 
     var idp = try fedManaement.enumerateIdPBegin(device, allocator);
     if (idp) |idp_| {
-        defer idp_.deinit();
-        std.log.info("[0]: {s}, {d}", .{ idp_.idp, idp_.total.? });
+        defer idp_.deinit(allocator);
+        std.log.info("[0]: {s}, {s}, {d}", .{ idp_.idpId.?, idp_.rpId.?, idp_.totalIdps.? });
     } else {
         std.log.warn("no valid IdP found", .{});
         return;
@@ -35,23 +35,13 @@ pub fn main() !void {
 }
 
 pub const fedManaement = struct {
-    pub const IdPResponse = struct {
-        idp: []const u8,
-        total: ?u32 = null,
-        a: std.mem.Allocator,
-
-        pub fn deinit(self: *const @This()) void {
-            self.a.free(self.idp);
-        }
-    };
-
     const FederationManagementRequest = @import("fed_management_extension/FederationManagementRequest.zig");
     const FederationManagementResponse = @import("fed_management_extension/FederationManagementResponse.zig");
 
     pub fn enumerateIdPBegin(
         t: *Transport,
         a: std.mem.Allocator,
-    ) !?IdPResponse {
+    ) !?FederationManagementResponse {
         const request = FederationManagementRequest{
             .subCommand = .enumerateIdPBegin,
         };
@@ -76,19 +66,13 @@ pub const fedManaement = struct {
             }
 
             var r = try cbor.parse(FederationManagementResponse, try cbor.DataItem.new(response[1..]), .{ .allocator = a });
-            defer r.deinit(a);
+            errdefer r.deinit(a);
 
-            if (r.idp == null) {
-                // this is somewhat an edge case, maybe
-                // whe should return an error instead.
-                return null;
+            if (r.rpId == null or r.idpId == null) {
+                return error.MissingField;
             }
 
-            return IdPResponse{
-                .idp = try a.dupe(u8, r.idp.?),
-                .total = if (r.totalIdps) |tot| tot else 1,
-                .a = a,
-            };
+            return r;
         } else {
             return error.MissingResponse;
         }

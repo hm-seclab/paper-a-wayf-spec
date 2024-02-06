@@ -151,14 +151,14 @@ identity provider:
 
 # CTAP2 Extension
 
-The following section introduces a extension for {{CTAP}} that introduces a new field enterpriseFed which marks a credential as belonging to an identity provider.
+The following section introduces a extension for {{CTAP}} that adds a new field (idpId) which marks a credential as belonging to an identity provider.
 
 ## Enterprise Federation (enterpriseFed)
 
 ### Feature detection
 
 Extension identifier:
-: fedEntity
+: federationId
 
 This registration extension allows relying parties to specify an federation entity when creating a credential.
 
@@ -170,7 +170,7 @@ create(): A single USVString specifying the federation entity.
 
 ~~~~~~~~~~
 partial dictionary AuthenticationExtensionsClientInputs {
-  USVString fedEntity;
+  USVString idpId;
 };
 ~~~~~~~~~~
 {: #figops title="Extension client input"}
@@ -194,14 +194,14 @@ None. The authenticator returns the result in the authenticator extension output
 
 The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:
 
-* "fedEntity":\<fedEntity Value\>
+* "idpId":\<fedEntity Value\>
 
 NOTE: The extension SHOULD be ignored for non-discoverable credentials.
 
 ~~~~~~~~~~
 {
     ...
-    6: {"fedEntity": "https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth"},
+    6: {"idpId": "https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth"},
     ...
 }
 ~~~~~~~~~~
@@ -215,13 +215,15 @@ The authenticator checks whether the authenticatorMakeCredential's options.rk op
 
 If the authenticator has set the extensions value for the credential:
 
-* "enterpriseFed":\<enterpriseFed Value\>
+* "idpId":\<enterpriseFed Value\>
 
 Else:
 
 * None.
 
 # CTAP2 efed pinUvAuthToken permission
+
+TODO: Maybe we can just use the same permission a credential management
 
 The following pinUvAuthToken permission extends the list of existing pinUvAuthTokens.
 
@@ -254,8 +256,9 @@ On success, authenticator returns the following structure in its response:
 
 | Parameter name | Data type | Definition |
 |:--------------:|:---------:|:----------:|
-| idp (0x01)     | Text String | IdP Information |
-| totalIdps (0x02) | Unsigned Integer | total number of IdPs present on the authenticator |
+| rpId (0x01)     | Text String | Relying party id |
+| idpId (0x02)     | Text String | IdP entity id |
+| totalIdps (0x03) | Unsigned Integer | total number of IdPs present on the authenticator |
 
 ### enumerateIdPBegin (0x01)
 
@@ -279,13 +282,15 @@ Following operations are preformed to enumerate the identity providers present o
         4. If the applicable credentials list is empty, return CTAP2_ERR_NO_IDPS.
         5. Let numberOfIdPs be the number of applicable credentials found.
     8. Authenticator returns an authenticatorFederationManagement response with following parameters:
-        * idp (0x01): Text String, the content of fedEntity.
-        * totalIdps (0x02): Total number of IdPs present on the authenticator. This can vary depending on if a pinUvAuthParam was sent with the request.
+        * rpId (0x01): Text String, relying party id.
+        * idpId (0x02): Text String, the content of fedEntity.
+        * totalIdps (0x03): Total number of IdPs present on the authenticator. This can vary depending on if a pinUvAuthParam was sent with the request.
 * Platform on receiving more than 1 totalIdps, performs following procedure for (totalIdps - 1 ) number of times:
     * Platform sends authenticatorFederationManagement command with following parameters:
         * subCommand (0x01): enumerateIdPsGetNextIdP (0x02).
     * Authenticator on receiving such enumerateIdPsGetNextIdP subCommand returns authenticatorFederationManagement response with following parameters:
-        * idp (0x01): Text String, the content of fedEntity.
+        * rpId (0x01): Text String, relying party id.
+        * idpId (0x02): Text String, the content of fedEntity.
 
 # CTAP2 Status codes
 
