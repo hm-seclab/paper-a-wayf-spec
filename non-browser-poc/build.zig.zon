@@ -4,7 +4,7 @@
     .dependencies = .{
         .keylib = .{
             .url = "https://github.com/r4gus/keylib/archive/client.tar.gz",
-            .hash = "12207380cdbc44dfda5cf381f8e8c877476630fc861620fb5903fa1825da344230a1",
+            .hash = "1220774a2f2643a52e32d97fce43f819478b77c3e8dc67bd5fae0febd659c266d73e",
         },
         .hidapi = .{
             .url = "https://github.com/r4gus/hidapi/archive/master.tar.gz",
