@@ -152,15 +152,15 @@ Internet-Draft                   A-WAYF                    February 2024
 
 2.  CTAP2 Extension
 
-   The following section introduces a extension for [CTAP] that
-   introduces a new field enterpriseFed which marks a credential as
-   belonging to an identity provider.
+   The following section introduces a extension for [CTAP] that adds a
+   new field (idpId) which marks a credential as belonging to an
+   identity provider.
 
 2.1.  Enterprise Federation (enterpriseFed)
 
 2.1.1.  Feature detection
 
-   Extension identifier:  fedEntity
+   Extension identifier:  federationId
 
 
 
@@ -180,7 +180,7 @@ Internet-Draft                   A-WAYF                    February 2024
    create(): A single USVString specifying the federation entity.
 
    partial dictionary AuthenticationExtensionsClientInputs {
-     USVString fedEntity;
+     USVString idpId;
    };
 
                       Figure 1: Extension client input
@@ -211,7 +211,7 @@ Internet-Draft                   A-WAYF                    February 2024
    following CBOR map entry in the "extensions" field to the
    authenticator:
 
-   *  "fedEntity":<fedEntity Value>
+   *  "idpId":<fedEntity Value>
 
    NOTE: The extension SHOULD be ignored for non-discoverable
    credentials.
@@ -226,13 +226,13 @@ Kupris, et al.            Expires 9 August 2024                 [Page 4]
 Internet-Draft                   A-WAYF                    February 2024
 
 
-{
-    ...
-    6: {"fedEntity": "https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth"},
-    ...
-}
+  {
+      ...
+      6: {"idpId": "https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth"},
+      ...
+  }
 
-  Figure 2: Sample CTAP2 authenticatorMakeCredential Request (CBOR)
+    Figure 2: Sample CTAP2 authenticatorMakeCredential Request (CBOR)
 
 2.1.3.2.  Authenticator extension processing
 
@@ -245,13 +245,16 @@ Internet-Draft                   A-WAYF                    February 2024
 
    If the authenticator has set the extensions value for the credential:
 
-   *  "enterpriseFed":<enterpriseFed Value>
+   *  "idpId":<enterpriseFed Value>
 
    Else:
 
    *  None.
 
 3.  CTAP2 efed pinUvAuthToken permission
+
+   TODO: Maybe we can just use the same permission a credential
+   management
 
    The following pinUvAuthToken permission extends the list of existing
    pinUvAuthTokens.
@@ -270,9 +273,6 @@ Internet-Draft                   A-WAYF                    February 2024
                                   Table 1
 
 4.  CTAP2 Command
-
-
-
 
 
 
@@ -338,16 +338,16 @@ Kupris, et al.            Expires 9 August 2024                 [Page 6]
 Internet-Draft                   A-WAYF                    February 2024
 
 
-    +====================+=============+==============================+
-    |   Parameter name   |  Data type  |          Definition          |
-    +====================+=============+==============================+
-    |    rpId (0x01)     | Text String |       Relying party id       |
-    +--------------------+-------------+------------------------------+
-    | fedEntityId (0x02) | Text String |        IdP entity id         |
-    +--------------------+-------------+------------------------------+
-    |  totalIdps (0x03)  |   Unsigned  | total number of IdPs present |
-    |                    |   Integer   |     on the authenticator     |
-    +--------------------+-------------+------------------------------+
+     +==================+=============+==============================+
+     |  Parameter name  |  Data type  |          Definition          |
+     +==================+=============+==============================+
+     |   rpId (0x01)    | Text String |       Relying party id       |
+     +------------------+-------------+------------------------------+
+     |   idpId (0x02)   | Text String |        IdP entity id         |
+     +------------------+-------------+------------------------------+
+     | totalIdps (0x03) |   Unsigned  | total number of IdPs present |
+     |                  |   Integer   |     on the authenticator     |
+     +------------------+-------------+------------------------------+
 
                                   Table 4
 
@@ -424,7 +424,7 @@ Internet-Draft                   A-WAYF                    February 2024
 
           -  rpId (0x01): Text String, relying party id.
 
-          -  fedEntityId (0x02): Text String, the content of fedEntity.
+          -  idpId (0x02): Text String, the content of fedEntity.
 
           -  totalIdps (0x03): Total number of IdPs present on the
              authenticator.  This can vary depending on if a
@@ -452,7 +452,7 @@ Internet-Draft                   A-WAYF                    February 2024
 
          o  rpId (0x01): Text String, relying party id.
 
-         o  fedEntityId (0x02): Text String, the content of fedEntity.
+         o  idpId (0x02): Text String, the content of fedEntity.
 
 5.  CTAP2 Status codes
 
