@@ -364,7 +364,7 @@ Internet-Draft                   A-WAYF                    February 2024
          secret.
 
       -  pinUvAuthParam (0x03): authenticate(pinUvAuthToken,
-         authenticatorFederationManagement (0x42)).
+         enumerateIdPBegin (0x01)).
 
    *  Authenticator on receiving such request performs following
       procedures:
@@ -375,8 +375,8 @@ Internet-Draft                   A-WAYF                    February 2024
       2.  If pinUvAuthProtocol is not supported, return
           CTAP1_ERR_INVALID_PARAMETER.
 
-      3.  Authenticator calls verify(pinUvAuthToken,
-          authenticatorFederationManagement (0x42), pinUvAuthParam).
+      3.  Authenticator calls verify(pinUvAuthToken, enumerateIdPBegin
+          (0x01), pinUvAuthParam).
 
       4.  If pinUvAuthParam verification fails, authenticator returns
           CTAP2_ERR_PIN_AUTH_INVALID error.

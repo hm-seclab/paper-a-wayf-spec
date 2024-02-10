@@ -264,11 +264,11 @@ Following operations are preformed to enumerate the identity providers present o
 * The platform gets a pinUvAuthToken from the authenticator with the fm (0x40) permission.
 * The Platform sends a authenticatorEnumerateIdP command with the following parameters:
     * pinUvAuthProtocol (0x02): as selected when getting the shared secret.
-    * pinUvAuthParam (0x03): authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42)).
+    * pinUvAuthParam (0x03): authenticate(pinUvAuthToken, enumerateIdPBegin (0x01)).
 * Authenticator on receiving such request performs following procedures:
     1. If one of the expected arguments is missing from the input map, return CTAP2_ERR_MISSING_PARAMETER.
     2. If pinUvAuthProtocol is not supported, return CTAP1_ERR_INVALID_PARAMETER.
-    3. Authenticator calls verify(pinUvAuthToken, authenticatorFederationManagement (0x42), pinUvAuthParam).
+    3. Authenticator calls verify(pinUvAuthToken, enumerateIdPBegin (0x01), pinUvAuthParam).
     4. If pinUvAuthParam verification fails, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
     5. The authenticator verifies that the pinUvAuthToken has the fm permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
     6. If no discoverable credentials exist on this authenticator, return CTAP2_ERR_NO_IDPS.

@@ -6,6 +6,7 @@ const FederationManagementRequest = @import("FederationManagementRequest.zig");
 const FederationManagementResponse = @import("FederationManagementResponse.zig");
 
 const ctap2_err_no_idps = fido.ctap.StatusCodes.ctap2_err_extension_2;
+const fedId = 0x40;
 
 pub fn authenticatorFederationManagement(
     auth: *fido.ctap.authenticator.Auth,
@@ -25,7 +26,22 @@ pub fn authenticatorFederationManagement(
 
     switch (fmp.subCommand) {
         .enumerateIdPBegin => {
-            // TODO: validate pinUvAuthParam
+            // Enforce user verification
+            if (fmp.pinUvAuthProtocol == null or fmp.pinUvAuthParam == null) {
+                return .ctap2_err_missing_parameter;
+            }
+
+            if (!auth.isProtected()) {
+                return .ctap2_err_pin_required;
+            }
+
+            if (!auth.token.verify_token("\x01", fmp.pinUvAuthParam.?, auth.allocator)) {
+                return .ctap2_err_pin_auth_invalid;
+            }
+
+            if (auth.token.permissions & fedId == 0) {
+                return .ctap2_err_pin_auth_invalid;
+            }
 
             // First we collect all credentials available
             var credentials = std.ArrayList(fido.ctap.authenticator.Credential).fromOwnedSlice(

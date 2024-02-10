@@ -134,7 +134,13 @@ pub const navigator = struct {
             const token = if (std.mem.eql(u8, op.?, "getPinToken")) blk: {
                 break :blk try client_pin.getPinToken(device, &enc, pw[0..], a);
             } else if (std.mem.eql(u8, op.?, "getPinUvAuthTokenUsingUvWithPermissions")) blk: {
-                break :blk try a.dupe(u8, "\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe"); // here we would return a token generated via getPinUvAuthTokenUsingUvWithPermissions
+                break :blk try client_pin.getPinUvAuthTokenUsingUvWithPermissions(
+                    device,
+                    &enc,
+                    .{ .reserved1 = 1 }, // 0x40 fedId
+                    null, // no rpId
+                    a,
+                );
             } else blk: {
                 break :blk try a.dupe(u8, "\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe\xca\xfe\xba\xbe"); // here we would return a token generated via getPinUvAuthTokenUsingPinWithPermissions
             };
@@ -218,8 +224,8 @@ pub const fedManagement = struct {
         a: std.mem.Allocator,
     ) !?FederationManagementResponse {
         const _param = switch (protocol) {
-            .V1 => try PinUvAuth.authenticate_v1(param, "\x02", a),
-            .V2 => try PinUvAuth.authenticate_v2(param, "\x02", a),
+            .V1 => try PinUvAuth.authenticate_v1(param, "\x01", a),
+            .V2 => try PinUvAuth.authenticate_v2(param, "\x01", a),
         };
         defer a.free(_param);
 
