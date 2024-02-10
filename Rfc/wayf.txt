@@ -77,15 +77,16 @@ Table of Contents
        2.1.1.  Feature detection . . . . . . . . . . . . . . . . . .   3
        2.1.2.  Client extension  . . . . . . . . . . . . . . . . . .   4
        2.1.3.  Authenticator extension . . . . . . . . . . . . . . .   4
-   3.  CTAP2 Command . . . . . . . . . . . . . . . . . . . . . . . .   5
-     3.1.  Prototype authenticatorFederationManagement (0x42)  . . .   5
-       3.1.1.  enumerateIdPBegin (0x01)  . . . . . . . . . . . . . .   7
-   4.  CTAP2 Status codes  . . . . . . . . . . . . . . . . . . . . .   8
-   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
-   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
-     6.1.  Normative References  . . . . . . . . . . . . . . . . . .   9
-     6.2.  Informative References  . . . . . . . . . . . . . . . . .   9
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   9
+   3.  CTAP2 pinUvAuthToken permission fedId (0x40)  . . . . . . . .   5
+   4.  CTAP2 Command . . . . . . . . . . . . . . . . . . . . . . . .   5
+     4.1.  Prototype authenticatorFederationManagement (0x42)  . . .   6
+       4.1.1.  enumerateIdPBegin (0x01)  . . . . . . . . . . . . . .   7
+   5.  CTAP2 Status codes  . . . . . . . . . . . . . . . . . . . . .   9
+   6.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
+   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
+     7.1.  Normative References  . . . . . . . . . . . . . . . . . .   9
+     7.2.  Informative References  . . . . . . . . . . . . . . . . .   9
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
 
 1.  Introduction
 
@@ -105,7 +106,6 @@ Table of Contents
    This document makes use of the following terminology:
 
    authenticator:  An Authenticator is software that implements the CTAP
-
 
 
 
@@ -251,25 +251,25 @@ Internet-Draft                   A-WAYF                    February 2024
 
    *  None.
 
-3.  CTAP2 Command
+3.  CTAP2 pinUvAuthToken permission fedId (0x40)
 
-3.1.  Prototype authenticatorFederationManagement (0x42)
+   This document extends the set of pinUvAuthToken permissions by the fm
+   (0x40) permission:
 
-   This command is used by the platform to manage federated credentials
-   on the authenticator.
+   +==========+==========+=====+=======+=================================+
+   |Permission|   Role   |Value|  rpId |            Definition           |
+   |   name   |          |     |       |                                 |
+   +==========+==========+=====+=======+=================================+
+   |    fm    |Federation| 0x40|Ignored|This allows the pinUvAuthToken to|
+   |          |Management|     |       |         be used with the        |
+   |          |          |     |       |authenticatorFederationManagement|
+   |          |          |     |       | command.  The rpId parameter is |
+   |          |          |     |       |    ignored, if it is present.   |
+   +----------+----------+-----+-------+---------------------------------+
 
-   It takes the following input parameters:
+                                  Table 1
 
-
-
-
-
-
-
-
-
-
-
+4.  CTAP2 Command
 
 
 
@@ -281,6 +281,13 @@ Kupris, et al.           Expires 13 August 2024                 [Page 5]
 
 Internet-Draft                   A-WAYF                    February 2024
 
+
+4.1.  Prototype authenticatorFederationManagement (0x42)
+
+   This command is used by the platform to manage federated credentials
+   on the authenticator.
+
+   It takes the following input parameters:
 
    +=================+========+=========+=================================+
    |  Parameter name |  Data  |Required?|Definition                       |
@@ -299,7 +306,7 @@ Internet-Draft                   A-WAYF                    February 2024
    |                 |        |         |(0x42))                          |
    +-----------------+--------+---------+---------------------------------+
 
-                                  Table 1
+                                  Table 2
 
    The list of sub commands for credential management is:
 
@@ -311,21 +318,14 @@ Internet-Draft                   A-WAYF                    February 2024
               | enumerateIdPsGetNextIdP |        0x02       |
               +-------------------------+-------------------+
 
-                                  Table 2
+                                  Table 3
 
    On success, authenticator returns the following structure in its
    response:
 
-     +==================+=============+==============================+
-     |  Parameter name  |  Data type  |          Definition          |
-     +==================+=============+==============================+
-     |   idpId (0x01)   | Text String |        IdP entity id         |
-     +------------------+-------------+------------------------------+
-     | totalIdps (0x02) |   Unsigned  | total number of IdPs present |
-     |                  |   Integer   |     on the authenticator     |
-     +------------------+-------------+------------------------------+
 
-                                  Table 3
+
+
 
 
 
@@ -338,13 +338,24 @@ Kupris, et al.           Expires 13 August 2024                 [Page 6]
 Internet-Draft                   A-WAYF                    February 2024
 
 
-3.1.1.  enumerateIdPBegin (0x01)
+     +==================+=============+==============================+
+     |  Parameter name  |  Data type  |          Definition          |
+     +==================+=============+==============================+
+     |   idpId (0x01)   | Text String |        IdP entity id         |
+     +------------------+-------------+------------------------------+
+     | totalIdps (0x02) |   Unsigned  | total number of IdPs present |
+     |                  |   Integer   |     on the authenticator     |
+     +------------------+-------------+------------------------------+
+
+                                  Table 4
+
+4.1.1.  enumerateIdPBegin (0x01)
 
    Following operations are preformed to enumerate the identity
    providers present on the authenticator:
 
    *  The platform gets a pinUvAuthToken from the authenticator with the
-      cm (0x04) permission.
+      fm (0x40) permission.
 
    *  The Platform sends a authenticatorEnumerateIdP command with the
       following parameters:
@@ -370,11 +381,18 @@ Internet-Draft                   A-WAYF                    February 2024
       4.  If pinUvAuthParam verification fails, authenticator returns
           CTAP2_ERR_PIN_AUTH_INVALID error.
 
-      5.  The authenticator verifies that the pinUvAuthToken has the cm
+      5.  The authenticator verifies that the pinUvAuthToken has the fm
           permission.  If not, return CTAP2_ERR_PIN_AUTH_INVALID.
 
       6.  If no discoverable credentials exist on this authenticator,
           return CTAP2_ERR_NO_IDPS.
+
+
+
+Kupris, et al.           Expires 13 August 2024                 [Page 7]
+
+Internet-Draft                   A-WAYF                    February 2024
+
 
       7.  Locate all credentials that are eligible for retrieval under
           the specified criteria:
@@ -384,15 +402,6 @@ Internet-Draft                   A-WAYF                    February 2024
 
           2.  Create an applicable credentials list populated with the
               located credentials.
-
-
-
-
-
-Kupris, et al.           Expires 13 August 2024                 [Page 7]
-
-Internet-Draft                   A-WAYF                    February 2024
-
 
           3.  Iterate through the applicable credentials list, and if
               credential protection for a credential is marked as
@@ -430,15 +439,6 @@ Internet-Draft                   A-WAYF                    February 2024
 
          o  idpId (0x01): Text String, the content of fedEntity.
 
-4.  CTAP2 Status codes
-
-   This extension also introduces a new status code that has to be added
-   to the table of available status codes.
-
-
-
-
-
 
 
 
@@ -449,6 +449,11 @@ Kupris, et al.           Expires 13 August 2024                 [Page 8]
 
 Internet-Draft                   A-WAYF                    February 2024
 
+
+5.  CTAP2 Status codes
+
+   This extension also introduces a new status code that has to be added
+   to the table of available status codes.
 
     +======+===================+======================================+
     | Code |        Name       |             Description              |
@@ -463,13 +468,13 @@ Internet-Draft                   A-WAYF                    February 2024
     |      |                   |   didn't provide a pinUvAuthToken.   |
     +------+-------------------+--------------------------------------+
 
-                                  Table 4
+                                  Table 5
 
-5.  Security Considerations
+6.  Security Considerations
 
-6.  References
+7.  References
 
-6.1.  Normative References
+7.1.  Normative References
 
    [CTAP]     Bradley, J., Hodges, J., Jones, M. B., Kumar, A.,
               Lindemann, R., and J. Verrept, "Client to Authenticator
@@ -486,17 +491,12 @@ Internet-Draft                   A-WAYF                    February 2024
               2119 Key Words", May 2017,
               <https://www.rfc-editor.org/info/rfc8174>.
 
-6.2.  Informative References
+7.2.  Informative References
 
    [WebAuthn] Hodges, J., Jones, J. C., Jones, M. B., Kumar, A., and E.
               Lundberg, "Web Authentication An API for accessing Public
               Key Credentials Level 2", 8 April 2021,
               <https://www.w3.org/TR/webauthn/>.
-
-Authors' Addresses
-
-   Erwin Kupris
-   Email: erwin.kupris@hm.edu
 
 
 
@@ -504,6 +504,12 @@ Authors' Addresses
 Kupris, et al.           Expires 13 August 2024                 [Page 9]
 
 Internet-Draft                   A-WAYF                    February 2024
+
+
+Authors' Addresses
+
+   Erwin Kupris
+   Email: erwin.kupris@hm.edu
 
 
    Tobias Hilbig
@@ -516,12 +522,6 @@ Internet-Draft                   A-WAYF                    February 2024
 
    Thomas Schreck
    Email: thomas.schreck@hm.edu
-
-
-
-
-
-
 
 
 

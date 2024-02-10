@@ -221,6 +221,14 @@ Else:
 
 * None.
 
+# CTAP2 pinUvAuthToken permission fedId (0x40)
+
+This document extends the set of pinUvAuthToken permissions by the fm (0x40) permission:
+
+| Permission name | Role | Value | rpId | Definition |
+|:---------------:|:----:|:-----:|:----:|:----------:|
+| fm  | Federation Management | 0x40 | Ignored | This allows the pinUvAuthToken to be used with the authenticatorFederationManagement command. The rpId parameter is ignored, if it is present. |
+
 # CTAP2 Command
 
 ## Prototype authenticatorFederationManagement (0x42)
@@ -253,7 +261,7 @@ On success, authenticator returns the following structure in its response:
 
 Following operations are preformed to enumerate the identity providers present on the authenticator:
 
-* The platform gets a pinUvAuthToken from the authenticator with the cm (0x04) permission.
+* The platform gets a pinUvAuthToken from the authenticator with the fm (0x40) permission.
 * The Platform sends a authenticatorEnumerateIdP command with the following parameters:
     * pinUvAuthProtocol (0x02): as selected when getting the shared secret.
     * pinUvAuthParam (0x03): authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42)).
@@ -262,7 +270,7 @@ Following operations are preformed to enumerate the identity providers present o
     2. If pinUvAuthProtocol is not supported, return CTAP1_ERR_INVALID_PARAMETER.
     3. Authenticator calls verify(pinUvAuthToken, authenticatorFederationManagement (0x42), pinUvAuthParam).
     4. If pinUvAuthParam verification fails, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
-    5. The authenticator verifies that the pinUvAuthToken has the cm permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
+    5. The authenticator verifies that the pinUvAuthToken has the fm permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
     6. If no discoverable credentials exist on this authenticator, return CTAP2_ERR_NO_IDPS.
     7. Locate all credentials that are eligible for retrieval under the specified criteria:
         1. Locate all discoverable credentials that are created by this authenticator that have the fedEntity property.
