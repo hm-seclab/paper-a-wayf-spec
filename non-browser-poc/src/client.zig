@@ -161,7 +161,7 @@ pub const navigator = struct {
                 var i: usize = 0;
                 const total = idp_.totalIdps.?;
 
-                std.log.info("[{d}]: {s}, {s}, {d}", .{ i, idp_.idpId.?, idp_.rpId.?, total });
+                std.log.info("[{d}]: {s}, {d}", .{ i, idp_.idpId.?, total });
                 try idp_list2.append(idp_);
                 i += 1;
 
@@ -169,7 +169,7 @@ pub const navigator = struct {
                     idp = try fedManagement.enumerateIdPsGetNextIdP(device, a);
 
                     if (idp) |idp__| {
-                        std.log.info("[{d}]: {s}, {s}", .{ i, idp__.idpId.?, idp__.rpId.? });
+                        std.log.info("[{d}]: {s}", .{ i, idp__.idpId.? });
                         try idp_list2.append(idp__);
                     } else {
                         std.log.warn("expected {d} IdPs but got {d}", .{ total, i });
@@ -251,7 +251,7 @@ pub const fedManagement = struct {
             var r = try cbor.parse(FederationManagementResponse, try cbor.DataItem.new(response[1..]), .{ .allocator = a });
             errdefer r.deinit(a);
 
-            if (r.rpId == null or r.idpId == null) {
+            if (r.idpId == null or r.totalIdps == null) {
                 return error.MissingField;
             }
 
@@ -291,7 +291,7 @@ pub const fedManagement = struct {
             var r = try cbor.parse(FederationManagementResponse, try cbor.DataItem.new(response[1..]), .{ .allocator = a });
             errdefer r.deinit(a);
 
-            if (r.rpId == null or r.idpId == null) {
+            if (r.idpId == null) {
                 return error.MissingField;
             }
 

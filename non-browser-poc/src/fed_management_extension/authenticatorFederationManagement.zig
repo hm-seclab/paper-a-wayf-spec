@@ -7,11 +7,6 @@ const FederationManagementResponse = @import("FederationManagementResponse.zig")
 
 const ctap2_err_no_idps = fido.ctap.StatusCodes.ctap2_err_extension_2;
 
-const FedTuple = struct {
-    rpId: []const u8,
-    idpId: []const u8,
-};
-
 pub fn authenticatorFederationManagement(
     auth: *fido.ctap.authenticator.Auth,
     request: []const u8,
@@ -69,19 +64,24 @@ pub fn authenticatorFederationManagement(
             }
 
             var rv = FederationManagementResponse{
-                .rpId = credentials.items[0].rp.id,
                 .idpId = credentials.items[0].getExtensions("idpId").?,
                 .totalIdps = @intCast(credentials.items.len),
             };
 
             if (credentials.items.len > 1) {
-                var idps = std.ArrayList(FedTuple).init(auth.allocator);
+                var idps = std.ArrayList([]const u8).init(auth.allocator);
                 defer idps.deinit();
 
-                for (credentials.items[1..]) |cred| {
+                blk: for (credentials.items[1..]) |cred| {
+                    for (idps.items) |idp| {
+                        if (std.mem.eql(u8, idp, cred.getExtensions("idpId").?)) {
+                            continue :blk;
+                        }
+                    }
+
                     // It's ok not to dupe the slice because we will
                     // serialize it during the next step.
-                    idps.append(.{ .idpId = cred.getExtensions("idpId").?, .rpId = cred.rp.id }) catch {
+                    idps.append(cred.getExtensions("idpId").?) catch {
                         std.log.err("federationManagement: out of memory", .{});
                         return fido.ctap.StatusCodes.ctap1_err_other;
                     };
