@@ -221,16 +221,6 @@ Else:
 
 * None.
 
-# CTAP2 efed pinUvAuthToken permission
-
-TODO: Maybe we can just use the same permission a credential management
-
-The following pinUvAuthToken permission extends the list of existing pinUvAuthTokens.
-
-| Permission name | Role | Value | RP ID | Definition |
-|:---------------:|:----:|:-----:|:-----:|----------|
-| efed    | Enumerate Identity Providers | 0x40 | Ignored | This allows the pinUvAuthToken to be used with the authenticatorFederationManagement command. The rpId parameter is ignored for this permission. |
-
 # CTAP2 Command
 
 ## Prototype authenticatorFederationManagement (0x42)
@@ -256,24 +246,23 @@ On success, authenticator returns the following structure in its response:
 
 | Parameter name | Data type | Definition |
 |:--------------:|:---------:|:----------:|
-| rpId (0x01)     | Text String | Relying party id |
-| idpId (0x02)     | Text String | IdP entity id |
-| totalIdps (0x03) | Unsigned Integer | total number of IdPs present on the authenticator |
+| idpId (0x01)     | Text String | IdP entity id |
+| totalIdps (0x02) | Unsigned Integer | total number of IdPs present on the authenticator |
 
 ### enumerateIdPBegin (0x01)
 
 Following operations are preformed to enumerate the identity providers present on the authenticator:
 
-* Optionally, the platform gets a pinUvAuthToken from the authenticator with the efed permission.
+* The platform gets a pinUvAuthToken from the authenticator with the cm (0x04) permission.
 * The Platform sends a authenticatorEnumerateIdP command with the following parameters:
-    * pinUvAuthProtocol (0x01): as selected when getting the shared secret (Optional).
-    * pinUvAuthParam (0x02): authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42)) (Optional). 
+    * pinUvAuthProtocol (0x02): as selected when getting the shared secret.
+    * pinUvAuthParam (0x03): authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42)).
 * Authenticator on receiving such request performs following procedures:
-    1. If pinUvAuthParam is missing from the input map, go to 6.
+    1. If one of the expected arguments is missing from the input map, return CTAP2_ERR_MISSING_PARAMETER.
     2. If pinUvAuthProtocol is not supported, return CTAP1_ERR_INVALID_PARAMETER.
     3. Authenticator calls verify(pinUvAuthToken, authenticatorFederationManagement (0x42), pinUvAuthParam).
     4. If pinUvAuthParam verification fails, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
-    5. The authenticator verifies that the pinUvAuthToken has the efed permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
+    5. The authenticator verifies that the pinUvAuthToken has the cm permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
     6. If no discoverable credentials exist on this authenticator, return CTAP2_ERR_NO_IDPS.
     7. Locate all credentials that are eligible for retrieval under the specified criteria:
         1. Locate all discoverable credentials that are created by this authenticator that have the fedEntity property.
@@ -282,15 +271,13 @@ Following operations are preformed to enumerate the identity providers present o
         4. If the applicable credentials list is empty, return CTAP2_ERR_NO_IDPS.
         5. Let numberOfIdPs be the number of applicable credentials found.
     8. Authenticator returns an authenticatorFederationManagement response with following parameters:
-        * rpId (0x01): Text String, relying party id.
-        * idpId (0x02): Text String, the content of fedEntity.
-        * totalIdps (0x03): Total number of IdPs present on the authenticator. This can vary depending on if a pinUvAuthParam was sent with the request.
+        * idpId (0x01): Text String, the content of fedEntity.
+        * totalIdps (0x02): Total number of IdPs present on the authenticator. This can vary depending on if a pinUvAuthParam was sent with the request.
 * Platform on receiving more than 1 totalIdps, performs following procedure for (totalIdps - 1 ) number of times:
     * Platform sends authenticatorFederationManagement command with following parameters:
         * subCommand (0x01): enumerateIdPsGetNextIdP (0x02).
     * Authenticator on receiving such enumerateIdPsGetNextIdP subCommand returns authenticatorFederationManagement response with following parameters:
-        * rpId (0x01): Text String, relying party id.
-        * idpId (0x02): Text String, the content of fedEntity.
+        * idpId (0x01): Text String, the content of fedEntity.
 
 # CTAP2 Status codes
 

@@ -5,11 +5,11 @@
 Network Working Group                                          E. Kupris
 Internet-Draft                                                          
 Intended status: Informational                                 T. Hilbig
-Expires: 9 August 2024                                                  
+Expires: 13 August 2024                                                 
                                                              D. P. Sugar
                                                                         
                                                               T. Schreck
-                                                         6 February 2024
+                                                        10 February 2024
 
 
         Automated Where Are You From in Multilateral Federations
@@ -36,7 +36,7 @@ Status of This Memo
    time.  It is inappropriate to use Internet-Drafts as reference
    material or to cite them other than as "work in progress."
 
-   This Internet-Draft will expire on 9 August 2024.
+   This Internet-Draft will expire on 13 August 2024.
 
 Copyright Notice
 
@@ -53,7 +53,7 @@ Copyright Notice
 
 
 
-Kupris, et al.            Expires 9 August 2024                 [Page 1]
+Kupris, et al.           Expires 13 August 2024                 [Page 1]
 
 Internet-Draft                   A-WAYF                    February 2024
 
@@ -77,16 +77,15 @@ Table of Contents
        2.1.1.  Feature detection . . . . . . . . . . . . . . . . . .   3
        2.1.2.  Client extension  . . . . . . . . . . . . . . . . . .   4
        2.1.3.  Authenticator extension . . . . . . . . . . . . . . .   4
-   3.  CTAP2 efed pinUvAuthToken permission  . . . . . . . . . . . .   5
-   4.  CTAP2 Command . . . . . . . . . . . . . . . . . . . . . . . .   5
-     4.1.  Prototype authenticatorFederationManagement (0x42)  . . .   6
-       4.1.1.  enumerateIdPBegin (0x01)  . . . . . . . . . . . . . .   7
-   5.  CTAP2 Status codes  . . . . . . . . . . . . . . . . . . . . .   9
-   6.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
-   7.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
-     7.1.  Normative References  . . . . . . . . . . . . . . . . . .   9
-     7.2.  Informative References  . . . . . . . . . . . . . . . . .   9
-   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  10
+   3.  CTAP2 Command . . . . . . . . . . . . . . . . . . . . . . . .   5
+     3.1.  Prototype authenticatorFederationManagement (0x42)  . . .   5
+       3.1.1.  enumerateIdPBegin (0x01)  . . . . . . . . . . . . . .   7
+   4.  CTAP2 Status codes  . . . . . . . . . . . . . . . . . . . . .   8
+   5.  Security Considerations . . . . . . . . . . . . . . . . . . .   9
+   6.  References  . . . . . . . . . . . . . . . . . . . . . . . . .   9
+     6.1.  Normative References  . . . . . . . . . . . . . . . . . .   9
+     6.2.  Informative References  . . . . . . . . . . . . . . . . .   9
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .   9
 
 1.  Introduction
 
@@ -109,7 +108,8 @@ Table of Contents
 
 
 
-Kupris, et al.            Expires 9 August 2024                 [Page 2]
+
+Kupris, et al.           Expires 13 August 2024                 [Page 2]
 
 Internet-Draft                   A-WAYF                    February 2024
 
@@ -165,7 +165,7 @@ Internet-Draft                   A-WAYF                    February 2024
 
 
 
-Kupris, et al.            Expires 9 August 2024                 [Page 3]
+Kupris, et al.           Expires 13 August 2024                 [Page 3]
 
 Internet-Draft                   A-WAYF                    February 2024
 
@@ -221,7 +221,7 @@ Internet-Draft                   A-WAYF                    February 2024
 
 
 
-Kupris, et al.            Expires 9 August 2024                 [Page 4]
+Kupris, et al.           Expires 13 August 2024                 [Page 4]
 
 Internet-Draft                   A-WAYF                    February 2024
 
@@ -251,43 +251,36 @@ Internet-Draft                   A-WAYF                    February 2024
 
    *  None.
 
-3.  CTAP2 efed pinUvAuthToken permission
+3.  CTAP2 Command
 
-   TODO: Maybe we can just use the same permission a credential
-   management
-
-   The following pinUvAuthToken permission extends the list of existing
-   pinUvAuthTokens.
-
-   +==========+=========+=====+=======+=================================+
-   |Permission|   Role  |Value| RP ID |Definition                       |
-   |   name   |         |     |       |                                 |
-   +==========+=========+=====+=======+=================================+
-   |   efed   |Enumerate| 0x40|Ignored|This allows the pinUvAuthToken to|
-   |          | Identity|     |       |be used with the                 |
-   |          |Providers|     |       |authenticatorFederationManagement|
-   |          |         |     |       |command.  The rpId parameter is  |
-   |          |         |     |       |ignored for this permission.     |
-   +----------+---------+-----+-------+---------------------------------+
-
-                                  Table 1
-
-4.  CTAP2 Command
-
-
-
-
-Kupris, et al.            Expires 9 August 2024                 [Page 5]
-
-Internet-Draft                   A-WAYF                    February 2024
-
-
-4.1.  Prototype authenticatorFederationManagement (0x42)
+3.1.  Prototype authenticatorFederationManagement (0x42)
 
    This command is used by the platform to manage federated credentials
    on the authenticator.
 
    It takes the following input parameters:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Kupris, et al.           Expires 13 August 2024                 [Page 5]
+
+Internet-Draft                   A-WAYF                    February 2024
+
 
    +=================+========+=========+=================================+
    |  Parameter name |  Data  |Required?|Definition                       |
@@ -306,7 +299,7 @@ Internet-Draft                   A-WAYF                    February 2024
    |                 |        |         |(0x42))                          |
    +-----------------+--------+---------+---------------------------------+
 
-                                  Table 2
+                                  Table 1
 
    The list of sub commands for credential management is:
 
@@ -318,11 +311,21 @@ Internet-Draft                   A-WAYF                    February 2024
               | enumerateIdPsGetNextIdP |        0x02       |
               +-------------------------+-------------------+
 
-                                  Table 3
+                                  Table 2
 
    On success, authenticator returns the following structure in its
    response:
 
+     +==================+=============+==============================+
+     |  Parameter name  |  Data type  |          Definition          |
+     +==================+=============+==============================+
+     |   idpId (0x01)   | Text String |        IdP entity id         |
+     +------------------+-------------+------------------------------+
+     | totalIdps (0x02) |   Unsigned  | total number of IdPs present |
+     |                  |   Integer   |     on the authenticator     |
+     +------------------+-------------+------------------------------+
+
+                                  Table 3
 
 
 
@@ -330,48 +333,33 @@ Internet-Draft                   A-WAYF                    February 2024
 
 
 
-
-
-
-Kupris, et al.            Expires 9 August 2024                 [Page 6]
+Kupris, et al.           Expires 13 August 2024                 [Page 6]
 
 Internet-Draft                   A-WAYF                    February 2024
 
 
-     +==================+=============+==============================+
-     |  Parameter name  |  Data type  |          Definition          |
-     +==================+=============+==============================+
-     |   rpId (0x01)    | Text String |       Relying party id       |
-     +------------------+-------------+------------------------------+
-     |   idpId (0x02)   | Text String |        IdP entity id         |
-     +------------------+-------------+------------------------------+
-     | totalIdps (0x03) |   Unsigned  | total number of IdPs present |
-     |                  |   Integer   |     on the authenticator     |
-     +------------------+-------------+------------------------------+
-
-                                  Table 4
-
-4.1.1.  enumerateIdPBegin (0x01)
+3.1.1.  enumerateIdPBegin (0x01)
 
    Following operations are preformed to enumerate the identity
    providers present on the authenticator:
 
-   *  Optionally, the platform gets a pinUvAuthToken from the
-      authenticator with the efed permission.
+   *  The platform gets a pinUvAuthToken from the authenticator with the
+      cm (0x04) permission.
 
    *  The Platform sends a authenticatorEnumerateIdP command with the
       following parameters:
 
-      -  pinUvAuthProtocol (0x01): as selected when getting the shared
-         secret (Optional).
+      -  pinUvAuthProtocol (0x02): as selected when getting the shared
+         secret.
 
-      -  pinUvAuthParam (0x02): authenticate(pinUvAuthToken,
-         authenticatorFederationManagement (0x42)) (Optional).
+      -  pinUvAuthParam (0x03): authenticate(pinUvAuthToken,
+         authenticatorFederationManagement (0x42)).
 
    *  Authenticator on receiving such request performs following
       procedures:
 
-      1.  If pinUvAuthParam is missing from the input map, go to 6.
+      1.  If one of the expected arguments is missing from the input
+          map, return CTAP2_ERR_MISSING_PARAMETER.
 
       2.  If pinUvAuthProtocol is not supported, return
           CTAP1_ERR_INVALID_PARAMETER.
@@ -382,17 +370,8 @@ Internet-Draft                   A-WAYF                    February 2024
       4.  If pinUvAuthParam verification fails, authenticator returns
           CTAP2_ERR_PIN_AUTH_INVALID error.
 
-      5.  The authenticator verifies that the pinUvAuthToken has the
-          efed permission.  If not, return CTAP2_ERR_PIN_AUTH_INVALID.
-
-
-
-
-
-Kupris, et al.            Expires 9 August 2024                 [Page 7]
-
-Internet-Draft                   A-WAYF                    February 2024
-
+      5.  The authenticator verifies that the pinUvAuthToken has the cm
+          permission.  If not, return CTAP2_ERR_PIN_AUTH_INVALID.
 
       6.  If no discoverable credentials exist on this authenticator,
           return CTAP2_ERR_NO_IDPS.
@@ -405,6 +384,15 @@ Internet-Draft                   A-WAYF                    February 2024
 
           2.  Create an applicable credentials list populated with the
               located credentials.
+
+
+
+
+
+Kupris, et al.           Expires 13 August 2024                 [Page 7]
+
+Internet-Draft                   A-WAYF                    February 2024
+
 
           3.  Iterate through the applicable credentials list, and if
               credential protection for a credential is marked as
@@ -422,11 +410,9 @@ Internet-Draft                   A-WAYF                    February 2024
       8.  Authenticator returns an authenticatorFederationManagement
           response with following parameters:
 
-          -  rpId (0x01): Text String, relying party id.
+          -  idpId (0x01): Text String, the content of fedEntity.
 
-          -  idpId (0x02): Text String, the content of fedEntity.
-
-          -  totalIdps (0x03): Total number of IdPs present on the
+          -  totalIdps (0x02): Total number of IdPs present on the
              authenticator.  This can vary depending on if a
              pinUvAuthParam was sent with the request.
 
@@ -442,22 +428,27 @@ Internet-Draft                   A-WAYF                    February 2024
          subCommand returns authenticatorFederationManagement response
          with following parameters:
 
+         o  idpId (0x01): Text String, the content of fedEntity.
 
-
-
-Kupris, et al.            Expires 9 August 2024                 [Page 8]
-
-Internet-Draft                   A-WAYF                    February 2024
-
-
-         o  rpId (0x01): Text String, relying party id.
-
-         o  idpId (0x02): Text String, the content of fedEntity.
-
-5.  CTAP2 Status codes
+4.  CTAP2 Status codes
 
    This extension also introduces a new status code that has to be added
    to the table of available status codes.
+
+
+
+
+
+
+
+
+
+
+
+Kupris, et al.           Expires 13 August 2024                 [Page 8]
+
+Internet-Draft                   A-WAYF                    February 2024
+
 
     +======+===================+======================================+
     | Code |        Name       |             Description              |
@@ -472,13 +463,13 @@ Internet-Draft                   A-WAYF                    February 2024
     |      |                   |   didn't provide a pinUvAuthToken.   |
     +------+-------------------+--------------------------------------+
 
-                                  Table 5
+                                  Table 4
 
-6.  Security Considerations
+5.  Security Considerations
 
-7.  References
+6.  References
 
-7.1.  Normative References
+6.1.  Normative References
 
    [CTAP]     Bradley, J., Hodges, J., Jones, M. B., Kumar, A.,
               Lindemann, R., and J. Verrept, "Client to Authenticator
@@ -495,16 +486,7 @@ Internet-Draft                   A-WAYF                    February 2024
               2119 Key Words", May 2017,
               <https://www.rfc-editor.org/info/rfc8174>.
 
-7.2.  Informative References
-
-
-
-
-
-Kupris, et al.            Expires 9 August 2024                 [Page 9]
-
-Internet-Draft                   A-WAYF                    February 2024
-
+6.2.  Informative References
 
    [WebAuthn] Hodges, J., Jones, J. C., Jones, M. B., Kumar, A., and E.
               Lundberg, "Web Authentication An API for accessing Public
@@ -515,6 +497,13 @@ Authors' Addresses
 
    Erwin Kupris
    Email: erwin.kupris@hm.edu
+
+
+
+
+Kupris, et al.           Expires 13 August 2024                 [Page 9]
+
+Internet-Draft                   A-WAYF                    February 2024
 
 
    Tobias Hilbig
@@ -557,4 +546,15 @@ Authors' Addresses
 
 
 
-Kupris, et al.            Expires 9 August 2024                [Page 10]
+
+
+
+
+
+
+
+
+
+
+
+Kupris, et al.           Expires 13 August 2024                [Page 10]
