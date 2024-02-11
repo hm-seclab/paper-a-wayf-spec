@@ -17,6 +17,8 @@ pub const ClientPinResponse = keylib.ctap.response.ClientPin;
 pub const EcdhP256 = keylib.ctap.crypto.dh.EcdhP256;
 pub const Sha256 = std.crypto.hash.sha2.Sha256;
 
+const jwt = @import("jwt.zig");
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
 
@@ -307,3 +309,7 @@ pub const fedManagement = struct {
         }
     }
 };
+
+test "client tests" {
+    _ = jwt;
+}

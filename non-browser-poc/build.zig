@@ -74,4 +74,13 @@ pub fn build(b: *std.Build) void {
     // This will evaluate the `run` step rather than the default, which is "install".
     const run_step2 = b.step("run-client", "Run the client");
     run_step2.dependOn(&run_cmd2.step);
+
+    const client_tests = b.addTest(.{
+        .root_source_file = .{ .path = "src/client.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+
+    const client_test_step = b.step("test", "Run client tests");
+    client_test_step.dependOn(&b.addRunArtifact(client_tests).step);
 }
