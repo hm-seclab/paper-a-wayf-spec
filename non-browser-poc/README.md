@@ -1,6 +1,6 @@
 # POC (non-browser)
 
-This is a proof of concept implementation for the A-WAYF: Automated Where Are You From in Multilateral Federations paper.
+This is a proof of concept implementation for the _A-WAYF: Automated Where Are You From in Multilateral Federations_ paper.
 
 ## Get started
 
@@ -12,7 +12,11 @@ After you've installed all required dependencies run `zig build` to
 build the authenticator and client executables. The executables will
 be placed into `./zig-out/bin/`.
 
-> TODO: fork the solokeys firmware, modify it and add it as submodule to the repo.
+> NOTE: The applications have been tested on Linux.
+
+If you have a [Solo Hacker authenticator](https://solokeys.com/collections/all/products/solo-hacker) you can 
+flash your authenticator with a [modified solo firmware](https://github.com/hm-seclab/awayf-solo1?tab=readme-ov-file#build-locally)
+that implements the extension and command proposed by A-WAYF. Just follow the _Build locally_ instructions.
 
 ## Project structure
 
@@ -22,13 +26,14 @@ The given project is structured as follows:
 * `src/authenticator.zig`: Example authenticator implementation.
 * `src/fed_management_extension/`: POC code for the proposed extension. This is used by both authenticator and client.
 * `src/make_credential/`: Modified implementation of the `authenticatorMakeCredential` command that uses the new extension.
+* `src/client.zig`: Client that implements A-WAYF.
 
 ## Authenticator
 
 The given authenticator implements the CTAP2 spec + the proposed fedEntity extension. It keeps its state in memory, i.e. you will loose all created credentials when terminating
 the application.
 
-* TODO: currently the authenticator exposes itself via usb but this is a feature only supported by Linux. As we control both authenticator and client it should be feasible to use another IPC method that works across OSes OR we just provide a virtual machine.
+* NOTE: The authenticator exposes itself via _uhid_ but this is a feature only supported by Linux.
 
 You can run the authenticator by executing `./zig-out/bin/authenticator`. Make sure you run the following script to enable the `uhid` module on Linux:
 
@@ -55,7 +60,8 @@ exit 0
 
 ## Client
 
-You can run the client by executing `./zig-out/bin/authenticator`. The POC client will use the first authenticator available via USB.
+You can run the client by executing `./zig-out/bin/client`. The PoC client will use the first authenticator available via USB. This
+can either be the virtual authenticator or a modified Solo Hacker.
 
 ## Example Output
 
