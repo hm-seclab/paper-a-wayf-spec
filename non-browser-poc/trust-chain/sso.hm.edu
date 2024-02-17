@@ -1,0 +1,25 @@
+{
+    "alg": "ES256",
+    "kid": "NTlhMTZhOGFiMjVjMzEwZDcwYWM1MjBlMjI3MmNjOTk4MWU2OWM2NDgzOGQ4YmJiOTI3M2EzZTBiMDM0OWE3Nw"
+}
+
+{
+  "sub": "sso.hm.edu",
+  "authority_hints": [
+    "ta.com",
+  ],
+  "jwks": {
+    "keys": [
+        {
+          "kty": "EC",
+          "crv": "P-256",
+          "x": "k6AW3vOy75xXoc_GgZJqNrOPsfknfphqMItfBsO3fT4",
+          "y": "13AY9eD5yr010oib3vCAEn9bblUj1DMSS3OhTKw0MHA",
+          "kid": "NTlhMTZhOGFiMjVjMzEwZDcwYWM1MjBlMjI3MmNjOTk4MWU2OWM2NDgzOGQ4YmJiOTI3M2EzZTBiMDM0OWE3Nw"
+        }
+    ]
+  },
+  "iss": "sso.hm.edu",
+  "iat": 1708118211,
+  "exp": 1739745309
+}
