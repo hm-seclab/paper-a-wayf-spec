@@ -328,6 +328,93 @@ pub const TrustChainEntry = struct {
     }
 };
 
+pub const TrustChain = []const TrustChainEntry;
+
+// https://openid.net/specs/openid-federation-1_0.html#section-9.2
+pub fn validateTrustChain(tc: TrustChain, a: Allocator) !void {
+    if (tc.len < 2) {
+        std.log.err("expected at least a leaf and trust anchor", .{});
+        return error.TrustChainTooShort;
+    }
+
+    var i: usize = 0;
+    var this: JWS = try JWS.fromSlice(tc[0].entity_statement, a);
+    defer this.deinit(a);
+    var next: JWS = try JWS.fromSlice(tc[1].entity_statement, a);
+    defer next.deinit(a);
+
+    while (i < tc.len - 1) : (i += 1) {
+        // TODO: Verify that iat has a value in the past.
+        // TODO: Verify that exp has a value that is in the future.
+
+        if (this.header.kid == null) {
+            std.log.err("missing kid for ES[{d}]", .{i});
+            return error.MissingKid;
+        }
+        if (this.header.alg == null) {
+            std.log.err("missing alg for ES[{d}]", .{i});
+            return error.MissingAlg;
+        }
+
+        // for EC[0]:
+        if (i == 0) {
+            // verify that iss == sub
+            if (!std.mem.eql(u8, tc[i].iss, tc[i].sub)) {
+                std.log.err("iss != sub for leaf", .{});
+                return error.LeafIssSubMismatch;
+            }
+
+            // verify that its signature validates with a public key in ES[0]["jwks"]
+            outer: for (this.payload.jwks.keys) |key| {
+                if (key.kid) |kid| {
+                    if (std.mem.eql(u8, kid, this.header.kid.?)) {
+                        const valid = try key.validate(tc[i].sig, tc[i].data, .{
+                            .hint = this.header.alg.?,
+                        });
+
+                        if (!valid) {
+                            std.log.err("validation of EC[{d}] failed", .{i});
+                            return error.ValidationFailure;
+                        }
+
+                        break :outer;
+                    }
+                }
+            } else {
+                std.log.err("no key found for EC[{d}]", .{i});
+                return error.KeyMissing;
+            }
+        }
+
+        // verify that ES[i]["iss"] == ES[i+1]["sub"]
+        if (!std.mem.eql(u8, tc[i].iss, tc[i + 1].sub)) {
+            std.log.err("iss != sub", .{});
+            return error.IssSubMismatch;
+        }
+
+        // verify the signature of ES[j] with a public key in ES[j+1]["jwks"]
+        outer: for (next.payload.jwks.keys) |key| {
+            if (key.kid) |kid| {
+                if (std.mem.eql(u8, kid, this.header.kid.?)) {
+                    const valid = try key.validate(tc[i].sig, tc[i].data, .{
+                        .hint = this.header.alg.?,
+                    });
+
+                    if (!valid) {
+                        std.log.err("validation of EC[{d}] failed", .{i});
+                        return error.ValidationFailure;
+                    }
+
+                    break :outer;
+                }
+            }
+        } else {
+            std.log.err("no key found for EC[{d}]", .{i});
+            return error.KeyMissing;
+        }
+    }
+}
+
 test "jwk calc kid #1" {
     const a = std.testing.allocator;
 
