@@ -83,4 +83,19 @@ pub fn build(b: *std.Build) void {
 
     const client_test_step = b.step("test", "Run client tests");
     client_test_step.dependOn(&b.addRunArtifact(client_tests).step);
+
+    // app
+
+    const exe3 = b.addExecutable(.{
+        .name = "app",
+        .root_source_file = .{ .path = "src/app.zig" },
+        .target = target,
+        .optimize = optimize,
+    });
+    exe3.addModule("keylib", keylib_dep.module("keylib"));
+    exe3.addModule("zbor", keylib_dep.module("zbor"));
+    exe3.linkLibrary(hidapi_dep.artifact("hidapi"));
+    exe3.linkLibC();
+
+    b.installArtifact(exe3);
 }

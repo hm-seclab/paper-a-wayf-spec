@@ -330,22 +330,44 @@ pub const TrustChainEntry = struct {
 
 pub const TrustChain = []const TrustChainEntry;
 
-// https://openid.net/specs/openid-federation-1_0.html#section-9.2
-pub fn validateTrustChain(tc: TrustChain, a: Allocator) !void {
-    if (tc.len < 2) {
-        std.log.err("expected at least a leaf and trust anchor", .{});
+/// Validate the given trust chain.
+///
+/// This function makes the following assumptions:
+/// 1. The trust chain starts with a statement of the leaf over itself
+/// 2. The trust chain ends with a statement of the TA over itself
+///
+/// https://openid.net/specs/openid-federation-1_0.html#section-9.2
+pub fn validateTrustChain(tc: TrustChain, epoch: i64, a: Allocator) !void {
+    if (tc.len < 3) {
+        // 1. leaf -> leaf
+        // 2. TA -> leaf
+        // 3. TA -> TA
+        std.log.err("expected at least 3 statements", .{});
         return error.TrustChainTooShort;
     }
 
     var i: usize = 0;
     var this: JWS = try JWS.fromSlice(tc[0].entity_statement, a);
     defer this.deinit(a);
-    var next: JWS = try JWS.fromSlice(tc[1].entity_statement, a);
-    defer next.deinit(a);
+    var next: ?JWS = try JWS.fromSlice(tc[1].entity_statement, a);
+    defer {
+        if (next != null) {
+            next.?.deinit(a);
+        }
+    }
 
     while (i < tc.len - 1) : (i += 1) {
-        // TODO: Verify that iat has a value in the past.
-        // TODO: Verify that exp has a value that is in the future.
+        if (i > 0) {
+            next = try JWS.fromSlice(tc[i + 1].entity_statement, a);
+        }
+        // Verify that iat has a value in the past.
+        if (this.payload.iat >= epoch) {
+            return error.Iat;
+        }
+        // Verify that exp has a value that is in the future.
+        if (this.payload.exp <= epoch) {
+            return error.Exp;
+        }
 
         if (this.header.kid == null) {
             std.log.err("missing kid for ES[{d}]", .{i});
@@ -368,7 +390,7 @@ pub fn validateTrustChain(tc: TrustChain, a: Allocator) !void {
             outer: for (this.payload.jwks.keys) |key| {
                 if (key.kid) |kid| {
                     if (std.mem.eql(u8, kid, this.header.kid.?)) {
-                        const valid = try key.validate(tc[i].sig, tc[i].data, .{
+                        const valid = try key.validate(this.sig, this.data, .{
                             .hint = this.header.alg.?,
                         });
 
@@ -387,16 +409,16 @@ pub fn validateTrustChain(tc: TrustChain, a: Allocator) !void {
         }
 
         // verify that ES[i]["iss"] == ES[i+1]["sub"]
-        if (!std.mem.eql(u8, tc[i].iss, tc[i + 1].sub)) {
+        if (!std.mem.eql(u8, tc[i].iss, tc[i + 1].sub) or !std.mem.eql(u8, this.payload.iss, next.?.payload.sub)) {
             std.log.err("iss != sub", .{});
             return error.IssSubMismatch;
         }
 
         // verify the signature of ES[j] with a public key in ES[j+1]["jwks"]
-        outer: for (next.payload.jwks.keys) |key| {
+        outer: for (next.?.payload.jwks.keys) |key| {
             if (key.kid) |kid| {
                 if (std.mem.eql(u8, kid, this.header.kid.?)) {
-                    const valid = try key.validate(tc[i].sig, tc[i].data, .{
+                    const valid = try key.validate(this.sig, this.data, .{
                         .hint = this.header.alg.?,
                     });
 
@@ -412,6 +434,34 @@ pub fn validateTrustChain(tc: TrustChain, a: Allocator) !void {
             std.log.err("no key found for EC[{d}]", .{i});
             return error.KeyMissing;
         }
+
+        this.deinit(a);
+        this = next.?;
+        next = null;
+    }
+
+    // now only the TA es left (this)
+
+    // TODO: verify iss == sub
+
+    outer: for (this.payload.jwks.keys) |key| {
+        if (key.kid) |kid| {
+            if (std.mem.eql(u8, kid, this.header.kid.?)) {
+                const valid = try key.validate(this.sig, this.data, .{
+                    .hint = this.header.alg.?,
+                });
+
+                if (!valid) {
+                    std.log.err("validation of EC[{d}] (TA) failed", .{i});
+                    return error.ValidationFailure;
+                }
+
+                break :outer;
+            }
+        }
+    } else {
+        std.log.err("no key found for EC[{d}] (TA)", .{i});
+        return error.KeyMissing;
     }
 }
 
@@ -497,4 +547,43 @@ test "JWS validation #1" {
             .hint = jws2.header.alg.?,
         },
     ));
+}
+
+test "trust chain validation #1" {
+    const a = std.testing.allocator;
+
+    const tc =
+        \\ [
+        \\     {
+        \\       "iss": "sp.edu",
+        \\       "sub": "sp.edu",
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTlRsaE1UWmhPR0ZpTWpWak16RXdaRGN3WVdNMU1qQmxNakkzTW1Oak9UazRNV1UyT1dNMk5EZ3pPR1E0WW1KaU9USTNNMkV6WlRCaU1ETTBPV0UzTncifQo.eyJzdWIiOiAic3AuZWR1IiwiYXV0aG9yaXR5X2hpbnRzIjogWyJ0YS5jb20iXSwiandrcyI6IHsia2V5cyI6IFt7Imt0eSI6ICJFQyIsImNydiI6ICJQLTI1NiIsIngiOiAiazZBVzN2T3k3NXhYb2NfR2daSnFOck9Qc2ZrbmZwaHFNSXRmQnNPM2ZUNCIsInkiOiAiMTNBWTllRDV5cjAxMG9pYjN2Q0FFbjliYmxVajFETVNTM09oVEt3ME1IQSIsImtpZCI6ICJOVGxoTVRaaE9HRmlNalZqTXpFd1pEY3dZV00xTWpCbE1qSTNNbU5qT1RrNE1XVTJPV00yTkRnek9HUTRZbUppT1RJM00yRXpaVEJpTURNME9XRTNOdyJ9XX0sImlzcyI6ICJzcC5lZHUiLCJpYXQiOiAxNzA4MTE4MjExLCJleHAiOiAxNzA4MjA0NjExfQ.YcqT1kx4Dwz8sQV2dUN9wOCU85O7jOruYaLZSuU19YYAF6IUMi8Cl6tjUtKlo2YK6_bZrWJcIqgfIloWfkX6mw"
+        \\     },
+        \\     {
+        \\       "iss": "int.edu",
+        \\       "sub": "sp.edu",                                                                                                                                                              
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiWVdObE16QmlOREkzTjJFek1ETXlaamcxTW1JeVpUWXdZMkpqWVdKbE5tVmlOamMwTkdWbVptSTFPV1V6TmpsaE16UXdNek5tTURBMk9UVmtPREZoWmcifQ.eyJzdWIiOiAic3AuZWR1IiwiYXV0aG9yaXR5X2hpbnRzIjogWyJpbnQuY29tIl0sImp3a3MiOiB7ImtleXMiOiBbeyJrdHkiOiAiRUMiLCJjcnYiOiAiUC0yNTYiLCJ4IjogIms2QVczdk95NzV4WG9jX0dnWkpxTnJPUHNma25mcGhxTUl0ZkJzTzNmVDQiLCJ5IjogIjEzQVk5ZUQ1eXIwMTBvaWIzdkNBRW45YmJsVWoxRE1TUzNPaFRLdzBNSEEiLCJraWQiOiAiTlRsaE1UWmhPR0ZpTWpWak16RXdaRGN3WVdNMU1qQmxNakkzTW1Oak9UazRNV1UyT1dNMk5EZ3pPR1E0WW1KaU9USTNNMkV6WlRCaU1ETTBPV0UzTncifV19LCJpc3MiOiAiaW50LmVkdSIsImlhdCI6IDE3MDgxMTgyMTEsImV4cCI6IDE3MDgyMDQ2MTF9.MhNac4cLhBhXHTSSRaJ25tpMjhzUMYbA0ptLXwaQtfzikM-UmfSc6W7zhfApnWSugR8iyfgdaHFXz8BtyKkb6w"
+        \\     },
+        \\     {
+        \\       "iss": "ta.com",
+        \\       "sub": "int.edu",
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTUdKbVltTTRObUZtWkRKaU1EUXdZbUZpTVdNelpHRTBNRGs1TnpReFptUXhaak5qTkRrMk1EYzNaRFpqTnpjMll6STBPRFJrWlRJNU5UazBNV0l5WlEifQ.eyJzdWIiOiAiaW50LmVkdSIsImF1dGhvcml0eV9oaW50cyI6IFsidGEuY29tIl0sImp3a3MiOiB7ImtleXMiOiBbeyJrdHkiOiAiRUMiLCJjcnYiOiAiUC0yNTYiLCJ4IjogInBFWEFUcUc5NnN4MVRTLXhqRE9Jb1BWZEZULWdpRW1vZF9pVVZRX0JBZjgiLCJ5IjogImZRbjVEZVIwb01FNWRYdFBVNk92Q1BOa2ZtUXI3dkJkUjBRV3pJajBKbFEiLCJraWQiOiAiWVdObE16QmlOREkzTjJFek1ETXlaamcxTW1JeVpUWXdZMkpqWVdKbE5tVmlOamMwTkdWbVptSTFPV1V6TmpsaE16UXdNek5tTURBMk9UVmtPREZoWmcifV19LCJpc3MiOiAidGEuY29tIiwiaWF0IjogMTcwODExODIxMSwiZXhwIjogMTcwODIwNDYxMX0.6neU5p0RPWg1BiB5nNheb4OZD6xxLmblPEWak7YtwNc8l2J7tAB28zTbOnQlsaaC_vG_A5Dr-0deyGf4Vh8M9Q"
+        \\     },
+        \\     {
+        \\       "iss": "ta.com",
+        \\       "sub": "ta.com",
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTUdKbVltTTRObUZtWkRKaU1EUXdZbUZpTVdNelpHRTBNRGs1TnpReFptUXhaak5qTkRrMk1EYzNaRFpqTnpjMll6STBPRFJrWlRJNU5UazBNV0l5WlEifQ.eyJzdWIiOiAidGEuY29tIiwiandrcyI6IHsia2V5cyI6IFt7Imt0eSI6ICJFQyIsImNydiI6ICJQLTI1NiIsIngiOiAicGJoV2RNYVE2cDk3YWpGY2V1S0ZKa2RmY21IZGtqekZocDFheXBvSFpsYyIsInkiOiAiUmZiS05RbkhvR1VrVXA0aDhGel9jRFNPVmRrNlJOYkIwbVI1N25OLUR6VSIsImtpZCI6ICJNR0ptWW1NNE5tRm1aREppTURRd1ltRmlNV016WkdFME1EazVOelF4Wm1ReFpqTmpORGsyTURjM1pEWmpOemMyWXpJME9EUmtaVEk1TlRrME1XSXlaUSJ9XX0sImlzcyI6ICJ0YS5jb20iLCJpYXQiOiAxNzA4MTE4MjExLCJleHAiOiAxNzA4MjA0NjExfQ.2iNX2fH4TLteeWzJO7QevgJxHGP09OLu7iYVeYwgggrxng7d78Vpjb9Xv5X3q48PEv7Sb9m7bL5UW1YBNqLz0g"
+        \\     }
+        \\ ]
+    ;
+
+    const tc2 = try std.json.parseFromSliceLeaky(TrustChain, a, tc, .{ .allocate = .alloc_always });
+    defer {
+        for (tc2) |ec| {
+            ec.deinit(a);
+        }
+        a.free(tc2);
+    }
+
+    try validateTrustChain(tc2, 1708118300, a);
 }
