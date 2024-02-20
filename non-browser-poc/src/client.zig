@@ -23,17 +23,58 @@ var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
 
 pub fn main() !void {
-    // We instruct our client to navigate to the FedSP hosted at sp.orga.edu
+    // TODO: get the trust chain from an endpoint
+    const sp_strust_chain =
+        \\ [
+        \\     {
+        \\       "iss": "sp.edu",
+        \\       "sub": "sp.edu",
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTlRsaE1UWmhPR0ZpTWpWak16RXdaRGN3WVdNMU1qQmxNakkzTW1Oak9UazRNV1UyT1dNMk5EZ3pPR1E0WW1KaU9USTNNMkV6WlRCaU1ETTBPV0UzTncifQo.eyJzdWIiOiAic3AuZWR1IiwiYXV0aG9yaXR5X2hpbnRzIjogWyJ0YS5jb20iXSwiandrcyI6IHsia2V5cyI6IFt7Imt0eSI6ICJFQyIsImNydiI6ICJQLTI1NiIsIngiOiAiazZBVzN2T3k3NXhYb2NfR2daSnFOck9Qc2ZrbmZwaHFNSXRmQnNPM2ZUNCIsInkiOiAiMTNBWTllRDV5cjAxMG9pYjN2Q0FFbjliYmxVajFETVNTM09oVEt3ME1IQSIsImtpZCI6ICJOVGxoTVRaaE9HRmlNalZqTXpFd1pEY3dZV00xTWpCbE1qSTNNbU5qT1RrNE1XVTJPV00yTkRnek9HUTRZbUppT1RJM00yRXpaVEJpTURNME9XRTNOdyJ9XX0sImlzcyI6ICJzcC5lZHUiLCJpYXQiOiAxNzA4MTE4MjExLCJleHAiOiAxNzA4MjA0NjExfQ.YcqT1kx4Dwz8sQV2dUN9wOCU85O7jOruYaLZSuU19YYAF6IUMi8Cl6tjUtKlo2YK6_bZrWJcIqgfIloWfkX6mw"
+        \\     },
+        \\     {
+        \\       "iss": "int.edu",
+        \\       "sub": "sp.edu",                                                                                                                                                              
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiWVdObE16QmlOREkzTjJFek1ETXlaamcxTW1JeVpUWXdZMkpqWVdKbE5tVmlOamMwTkdWbVptSTFPV1V6TmpsaE16UXdNek5tTURBMk9UVmtPREZoWmcifQ.eyJzdWIiOiAic3AuZWR1IiwiYXV0aG9yaXR5X2hpbnRzIjogWyJpbnQuY29tIl0sImp3a3MiOiB7ImtleXMiOiBbeyJrdHkiOiAiRUMiLCJjcnYiOiAiUC0yNTYiLCJ4IjogIms2QVczdk95NzV4WG9jX0dnWkpxTnJPUHNma25mcGhxTUl0ZkJzTzNmVDQiLCJ5IjogIjEzQVk5ZUQ1eXIwMTBvaWIzdkNBRW45YmJsVWoxRE1TUzNPaFRLdzBNSEEiLCJraWQiOiAiTlRsaE1UWmhPR0ZpTWpWak16RXdaRGN3WVdNMU1qQmxNakkzTW1Oak9UazRNV1UyT1dNMk5EZ3pPR1E0WW1KaU9USTNNMkV6WlRCaU1ETTBPV0UzTncifV19LCJpc3MiOiAiaW50LmVkdSIsImlhdCI6IDE3MDgxMTgyMTEsImV4cCI6IDE3MDgyMDQ2MTF9.MhNac4cLhBhXHTSSRaJ25tpMjhzUMYbA0ptLXwaQtfzikM-UmfSc6W7zhfApnWSugR8iyfgdaHFXz8BtyKkb6w"
+        \\     },
+        \\     {
+        \\       "iss": "ta.com",
+        \\       "sub": "int.edu",
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTUdKbVltTTRObUZtWkRKaU1EUXdZbUZpTVdNelpHRTBNRGs1TnpReFptUXhaak5qTkRrMk1EYzNaRFpqTnpjMll6STBPRFJrWlRJNU5UazBNV0l5WlEifQ.eyJzdWIiOiAiaW50LmVkdSIsImF1dGhvcml0eV9oaW50cyI6IFsidGEuY29tIl0sImp3a3MiOiB7ImtleXMiOiBbeyJrdHkiOiAiRUMiLCJjcnYiOiAiUC0yNTYiLCJ4IjogInBFWEFUcUc5NnN4MVRTLXhqRE9Jb1BWZEZULWdpRW1vZF9pVVZRX0JBZjgiLCJ5IjogImZRbjVEZVIwb01FNWRYdFBVNk92Q1BOa2ZtUXI3dkJkUjBRV3pJajBKbFEiLCJraWQiOiAiWVdObE16QmlOREkzTjJFek1ETXlaamcxTW1JeVpUWXdZMkpqWVdKbE5tVmlOamMwTkdWbVptSTFPV1V6TmpsaE16UXdNek5tTURBMk9UVmtPREZoWmcifV19LCJpc3MiOiAidGEuY29tIiwiaWF0IjogMTcwODExODIxMSwiZXhwIjogMTcwODIwNDYxMX0.6neU5p0RPWg1BiB5nNheb4OZD6xxLmblPEWak7YtwNc8l2J7tAB28zTbOnQlsaaC_vG_A5Dr-0deyGf4Vh8M9Q"
+        \\     },
+        \\     {
+        \\       "iss": "ta.com",
+        \\       "sub": "ta.com",
+        \\       "entity_statement": "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTUdKbVltTTRObUZtWkRKaU1EUXdZbUZpTVdNelpHRTBNRGs1TnpReFptUXhaak5qTkRrMk1EYzNaRFpqTnpjMll6STBPRFJrWlRJNU5UazBNV0l5WlEifQ.eyJzdWIiOiAidGEuY29tIiwiandrcyI6IHsia2V5cyI6IFt7Imt0eSI6ICJFQyIsImNydiI6ICJQLTI1NiIsIngiOiAicGJoV2RNYVE2cDk3YWpGY2V1S0ZKa2RmY21IZGtqekZocDFheXBvSFpsYyIsInkiOiAiUmZiS05RbkhvR1VrVXA0aDhGel9jRFNPVmRrNlJOYkIwbVI1N25OLUR6VSIsImtpZCI6ICJNR0ptWW1NNE5tRm1aREppTURRd1ltRmlNV016WkdFME1EazVOelF4Wm1ReFpqTmpORGsyTURjM1pEWmpOemMyWXpJME9EUmtaVEk1TlRrME1XSXlaUSJ9XX0sImlzcyI6ICJ0YS5jb20iLCJpYXQiOiAxNzA4MTE4MjExLCJleHAiOiAxNzA4MjA0NjExfQ.2iNX2fH4TLteeWzJO7QevgJxHGP09OLu7iYVeYwgggrxng7d78Vpjb9Xv5X3q48PEv7Sb9m7bL5UW1YBNqLz0g"
+        \\     }
+        \\ ]
+    ;
 
-    // The FedSP uses navigator.credential.resolveWAY
+    // The trust chain is supplied by the service provider (SP).
+    //
+    // In this example the SP and client are the same entity. This is a perfectly conceivable scenario.
+    // One example could be a conferencing application installed on the users PC that allows federated authentication.
+    // For web applications, the client (browser) has to implements resolveWAYF() as web application MUST NOT get direct
+    // access to an authenticator.
+    const tc = try std.json.parseFromSliceLeaky(jwt.TrustChain, allocator, sp_strust_chain, .{ .allocate = .alloc_always });
+    defer {
+        for (tc) |ec| {
+            ec.deinit(allocator);
+        }
+        allocator.free(tc);
+    }
+
+    // This function will derive an identity provider (IdP) for us.
     _ = try navigator.credential.resolveWAYF(
+        // It takes a list of supported IdPs...
         &.{ "sso.hm.edu", "idp.orga.edu", "idp.orgb.edu" },
-        // NOTE: In reality, the trust_statements parameter contains a set of JSON Web Tokens (JWTs).
-        //       We only use the chains entity IDs here for clarity.
-        &.{ &.{ "sp.orga.edu", "fake-org.net" }, &.{ "sp.orga.edu", "orga.edu", "hm.edu" } },
+        // ...the trust chain of the SP...
+        tc,
+        // ...and the federation protocol to expect.
         "OIDfed",
         allocator,
     );
+
+    // The next step would be to direct the user to the given IdP for authentication.
 }
 
 pub const navigator = struct {
@@ -51,13 +92,10 @@ pub const navigator = struct {
         /// TODO
         pub fn resolveWAYF(
             idp_list: fedManagement.IdPList,
-            trust_statements: fedManagement.TrustStatements,
+            trust_chain: jwt.TrustChain,
             fed_protocol: []const u8,
             a: std.mem.Allocator,
         ) !?[]const u8 {
-            _ = idp_list;
-            _ = trust_statements;
-
             // ##########################################
             // Step 2 -  Credentials Enumeration
             // ##########################################
@@ -169,7 +207,7 @@ pub const navigator = struct {
                 var i: usize = 0;
                 const total = idp_.totalIdps.?;
 
-                std.log.info("[{d}]: {s}, {d}", .{ i, idp_.idpId.?, total });
+                //std.log.info("[{d}]: {s}, {d}", .{ i, idp_.idpId.?, total });
                 try idp_list2.append(idp_);
                 i += 1;
 
@@ -177,7 +215,7 @@ pub const navigator = struct {
                     idp = try fedManagement.enumerateIdPsGetNextIdP(device, a);
 
                     if (idp) |idp__| {
-                        std.log.info("[{d}]: {s}", .{ i, idp__.idpId.? });
+                        //std.log.info("[{d}]: {s}", .{ i, idp__.idpId.? });
                         try idp_list2.append(idp__);
                     } else {
                         std.log.warn("expected {d} IdPs but got {d}", .{ total, i });
@@ -204,9 +242,43 @@ pub const navigator = struct {
                 return null;
             }
 
-            // Step 3.1 – IdP Matching:
+            // Step 3.1 – IdP Matching: Here we remove all IdPs that are not supported.
+            var potential_idps = std.ArrayList([]const u8).init(a);
+            defer potential_idps.deinit();
+
+            outer: for (idp_list2.items) |item1| {
+                for (idp_list) |item2| {
+                    if (std.mem.eql(u8, item1.idpId.?, item2)) {
+                        // We just reuse the pointer to the item in idp_list2
+                        try potential_idps.append(item1.idpId.?);
+                        continue :outer;
+                    }
+                }
+            }
 
             // Step 3.2 – Trust Resolve:
+
+            // First we have to verify that the TC of the SP is valid.
+            // TODO: As the TC is hardcoded we have to use a static time stamp.
+            try jwt.validateTrustChain(trust_chain, 1708118300, a);
+
+            // Next, for all available IdPs we have to:
+            //     a) query the trust chain and verify it
+            //     b) mutually verify the TA provided by the SP and the TA queried for the IdP
+            // The idea behind b) is that while the first TC is controlled by the SP (i.e. not trust worthy)
+            // the second TC has been queried by the client which we trust. For desktop/mobile
+            // applications where client and SP are the same entity, we assume that the
+            // appication itself is trust worthy (the user had to proactively install it).
+            // TODO
+
+            // Return selected IdP
+
+            if (idp_list2.items.len == 0) return null;
+
+            std.log.info("Please select an identity provider to authenticate with:", .{});
+            for (potential_idps.items, 0..) |item, i| {
+                std.log.info("    [{d}] {s}", .{ i, item });
+            }
 
             return null;
         }
@@ -217,7 +289,6 @@ pub const fedManagement = struct {
     const FederationManagementRequest = @import("fed_management_extension/FederationManagementRequest.zig");
     pub const FederationManagementResponse = @import("fed_management_extension/FederationManagementResponse.zig");
     pub const IdPList = []const []const u8;
-    pub const TrustStatements = []const []const []const u8; // TODO: implement support of JSON Web Tokens
 
     pub fn enumerateIdPBegin(
         t: *Transport,
