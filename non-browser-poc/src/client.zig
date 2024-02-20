@@ -253,7 +253,19 @@ pub const navigator = struct {
             // the second TC has been queried by the client which we trust. For desktop/mobile
             // applications where client and SP are the same entity, we assume that the
             // appication itself is trust worthy (the user had to proactively install it).
-            // TODO
+
+            // TODO: Query
+            // When querying a entity-statment with a TC there are multiple places where the server
+            // might place the TC. Some of them are:
+            // 1. Within the header (see https://openid.net/specs/openid-federation-1_0.html#section-4.1)
+            // 2. Within the Body:
+            //     a) The TC is a list of base64url encoded entity-statements with "trust_chain" as key
+            //     b) The TC is a nested list of base64url encoded entity-statements. The list
+            //        starts with the leaf and TA statment over themselfs respectively. The third
+            //        element is a nested list containing the intermediate statments, e.g.
+            //        the statment of the TA over the leaf (if we have a verfy ''flat'' federation).
+            // TODO: Validate TC
+            // TODO: Cross-Validate TAs
 
             // Return selected IdP
 
