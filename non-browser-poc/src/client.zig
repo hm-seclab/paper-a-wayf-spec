@@ -50,7 +50,7 @@ pub fn main() !void {
     // This function will derive an identity provider (IdP) for us.
     _ = try navigator.credential.resolveWAYF(
         // It takes a list of supported IdPs...
-        &.{ "sso.hm.edu", "idp.orga.edu", "idp.orgb.edu" },
+        &.{ "sso.hm.edu", "idp.orga.edu", "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/", "idp.orgb.edu" },
         // ...the trust chain of the SP...
         tc,
         // ...and the federation protocol to expect.
