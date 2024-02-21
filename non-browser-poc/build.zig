@@ -57,6 +57,7 @@ pub fn build(b: *std.Build) void {
     exe2.addModule("keylib", keylib_dep.module("keylib"));
     exe2.addModule("zbor", keylib_dep.module("zbor"));
     exe2.linkLibrary(hidapi_dep.artifact("hidapi"));
+    exe2.linkSystemLibrary("curl");
     exe2.linkLibC();
 
     b.installArtifact(exe2);

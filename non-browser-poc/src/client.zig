@@ -19,6 +19,10 @@ pub const Sha256 = std.crypto.hash.sha2.Sha256;
 
 const jwt = @import("jwt.zig");
 
+const cURL = @cImport({
+    @cInclude("curl/curl.h");
+});
+
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
 
@@ -32,6 +36,11 @@ pub fn main() !void {
         \\       "eyJhbGciOiAiRVMyNTYiLCJraWQiOiAiTUdKbVltTTRObUZtWkRKaU1EUXdZbUZpTVdNelpHRTBNRGs1TnpReFptUXhaak5qTkRrMk1EYzNaRFpqTnpjMll6STBPRFJrWlRJNU5UazBNV0l5WlEifQ.eyJzdWIiOiAidGEuY29tIiwiandrcyI6IHsia2V5cyI6IFt7Imt0eSI6ICJFQyIsImNydiI6ICJQLTI1NiIsIngiOiAicGJoV2RNYVE2cDk3YWpGY2V1S0ZKa2RmY21IZGtqekZocDFheXBvSFpsYyIsInkiOiAiUmZiS05RbkhvR1VrVXA0aDhGel9jRFNPVmRrNlJOYkIwbVI1N25OLUR6VSIsImtpZCI6ICJNR0ptWW1NNE5tRm1aREppTURRd1ltRmlNV016WkdFME1EazVOelF4Wm1ReFpqTmpORGsyTURjM1pEWmpOemMyWXpJME9EUmtaVEk1TlRrME1XSXlaUSJ9XX0sImlzcyI6ICJ0YS5jb20iLCJpYXQiOiAxNzA4MTE4MjExLCJleHAiOiAxNzA4MjA0NjExfQ.2iNX2fH4TLteeWzJO7QevgJxHGP09OLu7iYVeYwgggrxng7d78Vpjb9Xv5X3q48PEv7Sb9m7bL5UW1YBNqLz0g"
         \\ ]
     ;
+
+    // global curl init, or fail
+    if (cURL.curl_global_init(cURL.CURL_GLOBAL_ALL) != cURL.CURLE_OK)
+        return error.CURLGlobalInitFailed;
+    defer cURL.curl_global_cleanup();
 
     // The trust chain is supplied by the service provider (SP).
     //
@@ -240,6 +249,8 @@ pub const navigator = struct {
                 }
             }
 
+            if (idp_list2.items.len == 0) return null;
+
             // Step 3.2 – Trust Resolve:
 
             // First we have to verify that the TC of the SP is valid.
@@ -267,9 +278,17 @@ pub const navigator = struct {
             // TODO: Validate TC
             // TODO: Cross-Validate TAs
 
-            // Return selected IdP
+            for (potential_idps.items) |IdP| {
+                _ = IdP;
+                //const raw_tc = resolveTrustChain(IdP, a) catch {
+                //    // TODO: remove idp
+                //    continue;
+                //};
 
-            if (idp_list2.items.len == 0) return null;
+                //a.free(raw_tc);
+            }
+
+            // Return selected IdP
 
             std.log.info("Please select an identity provider to authenticate with:", .{});
             for (potential_idps.items, 0..) |item, i| {
@@ -280,6 +299,42 @@ pub const navigator = struct {
         }
     };
 };
+
+fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) ![]const u8 {
+    // curl easy handle init, or fail
+    const handle = cURL.curl_easy_init() orelse return error.CURLHandleInitFailed;
+    defer cURL.curl_easy_cleanup(handle);
+
+    var response_buffer = std.ArrayList(u8).init(a);
+    errdefer response_buffer.deinit();
+
+    const url = try std.mem.concat(a, u8, &.{ node, "/resolve" });
+    defer a.free(url);
+
+    // setup curl options
+    //TODO: cURL.curl_url_set(
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url) != cURL.CURLE_OK)
+        return error.CouldNotSetURL;
+
+    // set write function callbacks
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEFUNCTION, writeToArrayListCallback) != cURL.CURLE_OK)
+        return error.CouldNotSetWriteCallback;
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEDATA, &response_buffer) != cURL.CURLE_OK)
+        return error.CouldNotSetWriteCallback;
+
+    // perform
+    if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
+        return error.FailedToPerformRequest;
+
+    return try response_buffer.toOwnedSlice();
+}
+
+fn writeToArrayListCallback(data: *anyopaque, size: c_uint, nmemb: c_uint, user_data: *anyopaque) callconv(.C) c_uint {
+    var buffer: *std.ArrayList(u8) = @alignCast(@ptrCast(user_data));
+    var typed_data: [*]u8 = @ptrCast(data);
+    buffer.appendSlice(typed_data[0 .. nmemb * size]) catch return 0;
+    return nmemb * size;
+}
 
 pub const fedManagement = struct {
     const FederationManagementRequest = @import("fed_management_extension/FederationManagementRequest.zig");
