@@ -33,11 +33,13 @@ pub const JWS = struct {
         var h = try a.alloc(u8, hs);
         defer a.free(h);
         try Base64Decoder.decode(h, s[0..d1]);
+        //std.log.info("{s}", .{h});
 
         const ps = try Base64Decoder.calcSizeForSlice(s[d1 + 1 .. d2]);
         var p = try a.alloc(u8, ps);
         defer a.free(p);
         try Base64Decoder.decode(p, s[d1 + 1 .. d2]);
+        //std.log.info("{s}", .{p});
 
         var self = @This(){
             .header = try std.json.parseFromSliceLeaky(Header, a, h, .{
@@ -89,9 +91,9 @@ pub const Header = struct {
 /// The claims of a OpenID JWT.
 pub const ClaimSet = struct {
     /// Issuer claim: identifies the principal that issued the JWT.
-    iss: []const u8 = "",
+    iss: []const u8,
     /// Subject claim: identifies the principal that is the subject of the JWT.
-    sub: []const u8 = "",
+    sub: []const u8,
     /// The time the statement was issued in seconds form 1970-01-01T0:0:0Z (epoch).
     iat: i64 = 0,
     /// Expiration time after which the statement MUST NOT be accepted (epoch).
@@ -99,7 +101,7 @@ pub const ClaimSet = struct {
     /// A set of public signing keys.
     jwks: struct {
         keys: []const jwk.Key = &.{},
-    },
+    } = .{},
     /// An array of strings representing the Entity Identifiers of Intermediate Entities or Trust Anchors.
     ///
     /// * REQUIRED in the Entity Configurations of the Entities that have at least one Superior above them.
@@ -581,4 +583,173 @@ test "trust chain validation #1" {
     }
 
     try validateTrustChain(tc2, 1708118300, a);
+}
+
+test "this test documents the current problem when querying https://trust-anchor.testbed.oidcfed.incubator.geant.org" {
+    const a = std.testing.allocator;
+
+    const x =
+        \\        {
+        \\  "iss": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/",
+        \\  "sub": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/",
+        \\  "iat": 1648758030,
+        \\  "exp": 1650730827,
+        \\  "trust_marks": [],
+        \\  "metadata": {
+        \\    "openid_provider": {
+        \\      "authorization_endpoint": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/authorization",
+        \\      "revocation_endpoint": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/revocation/",
+        \\      "id_token_encryption_alg_values_supported": [
+        \\        "RSA-OAEP"
+        \\      ],
+        \\      "id_token_encryption_enc_values_supported": [
+        \\        "A128CBC-HS256"
+        \\      ],
+        \\      "token_endpoint": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/token/",
+        \\      "userinfo_endpoint": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/userinfo/",
+        \\      "introspection_endpoint": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/introspection/",
+        \\      "claims_parameter_supported": true,
+        \\      "contacts": [
+        \\        "ops@https://idp.it"
+        \\      ],
+        \\      "client_registration_types_supported": [
+        \\        "automatic"
+        \\      ],
+        \\      "code_challenge_methods_supported": [
+        \\        "S256"
+        \\      ],
+        \\      "request_authentication_methods_supported": {
+        \\        "ar": [
+        \\          "request_object"
+        \\        ]
+        \\      },
+        \\      "acr_values_supported": [
+        \\        "https://www.spid.gov.it/SpidL1",
+        \\        "https://www.spid.gov.it/SpidL2",
+        \\        "https://www.spid.gov.it/SpidL3"
+        \\      ],
+        \\      "claims_supported": [
+        \\        "https://attributes.spid.gov.it/spidCode",
+        \\        "https://attributes.spid.gov.it/name",
+        \\        "https://attributes.spid.gov.it/familyName",
+        \\        "https://attributes.spid.gov.it/placeOfBirth",
+        \\        "https://attributes.spid.gov.it/countyOfBirth",
+        \\        "https://attributes.spid.gov.it/dateOfBirth",
+        \\        "https://attributes.spid.gov.it/gender",
+        \\        "https://attributes.spid.gov.it/companyName",
+        \\        "https://attributes.spid.gov.it/registeredOffice",
+        \\        "https://attributes.spid.gov.it/fiscalNumber",
+        \\        "https://attributes.spid.gov.it/ivaCode",
+        \\        "https://attributes.spid.gov.it/idCard",
+        \\        "https://attributes.spid.gov.it/mobilePhone",
+        \\        "https://attributes.spid.gov.it/email",
+        \\        "https://attributes.spid.gov.it/address",
+        \\        "https://attributes.spid.gov.it/expirationDate",
+        \\        "https://attributes.spid.gov.it/digitalAddress"
+        \\      ],
+        \\      "grant_types_supported": [
+        \\        "authorization_code",
+        \\        "refresh_token"
+        \\      ],
+        \\      "id_token_signing_alg_values_supported": [
+        \\        "RS256",
+        \\        "ES256"
+        \\      ],
+        \\      "issuer": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/",
+        \\      "jwks": {
+        \\        "keys": [
+        \\          {
+        \\            "kty": "RSA",
+        \\            "use": "sig",
+        \\            "n": "01_4aI2Lu5ggsElmRkE_S_a83V_szXU0txV4db2hmJ8HR1Y2s7PsZZ5-emGpnTydGrR3n-QExeEEIcFt_a06Ryiink34RQcKoGXUDBMBU0Bu8G7NcZ99YX6yeG9wFi4xs-WviTPmtPqijkz6jm1_ltWDcwbktfkraIRKKggZaEl9ldtsFr2wSpin3AXuGIdeJ0hZqhF92ODBLGjJlaIL9KlwopDy56adReVnraawSdrxmuPGj78IEADNAme2nQNvv9UCu0FkAn5St1bKds3Gpv26W0kjr1gZLsmQrj9lTcDk_KbAwfEY__P7se62kusoSuKMTQqUG1TQpUY7oFGSdw",
+        \\            "e": "AQAB",
+        \\            "kid": "dB67gL7ck3TFiIAf7N6_7SHvqk0MDYMEQcoGGlkUAAw"
+        \\          }
+        \\        ]
+        \\      },
+        \\      "scopes_supported": [
+        \\        "openid",
+        \\        "offline_access"
+        \\      ],
+        \\      "logo_uri": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/static/svg/spid-logo-c-lb.svg",
+        \\      "organization_name": "SPID OIDC identity provider",
+        \\      "op_policy_uri": "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/en/website/legal-information/",
+        \\      "request_parameter_supported": true,
+        \\      "request_uri_parameter_supported": true,
+        \\      "require_request_uri_registration": true,
+        \\      "response_types_supported": [
+        \\        "code"
+        \\      ],
+        \\      "subject_types_supported": [
+        \\        "pairwise",
+        \\        "public"
+        \\      ],
+        \\      "token_endpoint_auth_methods_supported": [
+        \\        "private_key_jwt"
+        \\      ],
+        \\      "token_endpoint_auth_signing_alg_values_supported": [
+        \\        "RS256",
+        \\        "RS384",
+        \\        "RS512",
+        \\        "ES256",
+        \\        "ES384",
+        \\        "ES512"
+        \\      ],
+        \\      "userinfo_encryption_alg_values_supported": [
+        \\        "RSA-OAEP",
+        \\        "RSA-OAEP-256"
+        \\      ],
+        \\      "userinfo_encryption_enc_values_supported": [
+        \\        "A128CBC-HS256",
+        \\        "A192CBC-HS384",
+        \\        "A256CBC-HS512",
+        \\        "A128GCM",
+        \\        "A192GCM",
+        \\        "A256GCM"
+        \\      ],
+        \\      "userinfo_signing_alg_values_supported": [
+        \\        "RS256",
+        \\        "RS384",
+        \\        "RS512",
+        \\        "ES256",
+        \\        "ES384",
+        \\        "ES512"
+        \\      ],
+        \\      "request_object_encryption_alg_values_supported": [
+        \\        "RSA-OAEP",
+        \\        "RSA-OAEP-256"
+        \\      ],
+        \\      "request_object_encryption_enc_values_supported": [
+        \\        "A128CBC-HS256",
+        \\        "A192CBC-HS384",
+        \\        "A256CBC-HS512",
+        \\        "A128GCM",
+        \\        "A192GCM",
+        \\        "A256GCM"
+        \\      ],
+        \\      "request_object_signing_alg_values_supported": [
+        \\        "RS256",
+        \\        "RS384",
+        \\        "RS512",
+        \\        "ES256",
+        \\        "ES384",
+        \\        "ES512"
+        \\      ]
+        \\    }
+        \\  },
+        \\  "trust_chain": [
+        \\    "eyJhbGciOiJSUzI1NiIsImtpZCI6ImNJOHBCdldkSGdjdmxkbUk3SFhiUE1mRmhTS2tmQUNJYm9mc0Q2cTJKdEUiLCJ0eXAiOiJlbnRpdHktc3RhdGVtZW50K2p3dCJ9.eyJleHAiOjE2NTA5MDE2NDcsImlhdCI6MTY1MDcyODg0NywiaXNzIjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL29pZGMvb3AvIiwic3ViIjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL29pZGMvb3AvIiwiandrcyI6eyJrZXlzIjpbeyJrdHkiOiJSU0EiLCJlIjoiQVFBQiIsIm4iOiIxQVlHRjBDX2o1Q1BlWU1SSF9ta2huWXRudk1fQ21kbFdTRkhLOVlFYXMzZ0oxOTIyRG5oRngzRUl3MVUta1p3dzdiZ056NkMxbF8xY3lqa2dCU3VXeE9iT2JLNHpWTFpCR1VaZlhNQk5GbTJoZHI1Vm9MS0xlbXRaSHBCT21kc3hSMVIzVEozMEQwdlktTEpiVXRyd3VSQzhvT0NZSTV3aGNFYzhCNHV0RWV4M1c2ZENqQklqc0dmZEpJcVpIaGZMTjN4d1BNT2prRzVBX3k4V25UVmZHcTlPVWV1YVVuMy1QVnMzTzlMTXBPQmxhVDdHcmVYZ1VxV0FXLXp4VUNzaUhIVVZsOXVJQUdpNU9IdWtJdUJzMkNsQWxNWF9TNm1iTjdfN0tJR3gybVRJcmNnVkJQSmdZb3A5cW5TcWNYdWJfRVFUS3NGdE5HaWdzVUZuRHFGTlEiLCJraWQiOiJjSThwQnZXZEhnY3ZsZG1JN0hYYlBNZkZoU0trZkFDSWJvZnNENnEySnRFIn1dfSwibWV0YWRhdGEiOnsib3BlbmlkX3Byb3ZpZGVyIjp7ImF1dGhvcml6YXRpb25fZW5kcG9pbnQiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvb2lkYy9vcC9hdXRob3JpemF0aW9uIiwicmV2b2NhdGlvbl9lbmRwb2ludCI6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9vaWRjL29wL3Jldm9jYXRpb24vIiwiaWRfdG9rZW5fZW5jcnlwdGlvbl9hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSU0EtT0FFUCJdLCJpZF90b2tlbl9lbmNyeXB0aW9uX2VuY192YWx1ZXNfc3VwcG9ydGVkIjpbIkExMjhDQkMtSFMyNTYiXSwib3BfbmFtZSI6IkFnZW56aWEgcGVyIGxcdTIwMTlJdGFsaWEgRGlnaXRhbGUiLCJvcF91cmkiOiJodHRwczovL3d3dy5hZ2lkLmdvdi5pdCIsInRva2VuX2VuZHBvaW50IjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL29pZGMvb3AvdG9rZW4vIiwidXNlcmluZm9fZW5kcG9pbnQiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvb2lkYy9vcC91c2VyaW5mby8iLCJpbnRyb3NwZWN0aW9uX2VuZHBvaW50IjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL29pZGMvb3AvaW50cm9zcGVjdGlvbi8iLCJjbGFpbXNfcGFyYW1ldGVyX3N1cHBvcnRlZCI6dHJ1ZSwiY29udGFjdHMiOlsib3BzQGh0dHBzOi8vaWRwLml0Il0sImNsaWVudF9yZWdpc3RyYXRpb25fdHlwZXNfc3VwcG9ydGVkIjpbImF1dG9tYXRpYyJdLCJjb2RlX2NoYWxsZW5nZV9tZXRob2RzX3N1cHBvcnRlZCI6WyJTMjU2Il0sInJlcXVlc3RfYXV0aGVudGljYXRpb25fbWV0aG9kc19zdXBwb3J0ZWQiOnsiYXIiOlsicmVxdWVzdF9vYmplY3QiXX0sImFjcl92YWx1ZXNfc3VwcG9ydGVkIjpbImh0dHBzOi8vd3d3LnNwaWQuZ292Lml0L1NwaWRMMSIsImh0dHBzOi8vd3d3LnNwaWQuZ292Lml0L1NwaWRMMiIsImh0dHBzOi8vd3d3LnNwaWQuZ292Lml0L1NwaWRMMyJdLCJjbGFpbXNfc3VwcG9ydGVkIjpbImh0dHBzOi8vYXR0cmlidXRlcy5zcGlkLmdvdi5pdC9zcGlkQ29kZSIsImh0dHBzOi8vYXR0cmlidXRlcy5zcGlkLmdvdi5pdC9uYW1lIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L2ZhbWlseU5hbWUiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvcGxhY2VPZkJpcnRoIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L2NvdW50eU9mQmlydGgiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvZGF0ZU9mQmlydGgiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvZ2VuZGVyIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L2NvbXBhbnlOYW1lIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L3JlZ2lzdGVyZWRPZmZpY2UiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvZmlzY2FsTnVtYmVyIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L2l2YUNvZGUiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvaWRDYXJkIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L21vYmlsZVBob25lIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L2VtYWlsIiwiaHR0cHM6Ly9hdHRyaWJ1dGVzLnNwaWQuZ292Lml0L2FkZHJlc3MiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvZXhwaXJhdGlvbkRhdGUiLCJodHRwczovL2F0dHJpYnV0ZXMuc3BpZC5nb3YuaXQvZGlnaXRhbEFkZHJlc3MiXSwiZ3JhbnRfdHlwZXNfc3VwcG9ydGVkIjpbImF1dGhvcml6YXRpb25fY29kZSIsInJlZnJlc2hfdG9rZW4iXSwiaWRfdG9rZW5fc2lnbmluZ19hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSUzI1NiIsIkVTMjU2Il0sImlzc3VlciI6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9vaWRjL29wLyIsImp3a3MiOnsia2V5cyI6W3sia3R5IjoiUlNBIiwidXNlIjoic2lnIiwibiI6IjAxXzRhSTJMdTVnZ3NFbG1Sa0VfU19hODNWX3N6WFUwdHhWNGRiMmhtSjhIUjFZMnM3UHNaWjUtZW1HcG5UeWRHclIzbi1RRXhlRUVJY0Z0X2EwNlJ5aWluazM0UlFjS29HWFVEQk1CVTBCdThHN05jWjk5WVg2eWVHOXdGaTR4cy1XdmlUUG10UHFpamt6NmptMV9sdFdEY3dia3Rma3JhSVJLS2dnWmFFbDlsZHRzRnIyd1NwaW4zQVh1R0lkZUowaFpxaEY5Mk9EQkxHakpsYUlMOUtsd29wRHk1NmFkUmVWbnJhYXdTZHJ4bXVQR2o3OElFQUROQW1lMm5RTnZ2OVVDdTBGa0FuNVN0MWJLZHMzR3B2MjZXMGtqcjFnWkxzbVFyajlsVGNEa19LYkF3ZkVZX19QN3NlNjJrdXNvU3VLTVRRcVVHMVRRcFVZN29GR1NkdyIsImUiOiJBUUFCIiwia2lkIjoiZEI2N2dMN2NrM1RGaUlBZjdONl83U0h2cWswTURZTUVRY29HR2xrVUFBdyJ9XX0sInNjb3Blc19zdXBwb3J0ZWQiOlsib3BlbmlkIiwib2ZmbGluZV9hY2Nlc3MiXSwibG9nb191cmkiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvc3RhdGljL3N2Zy9zcGlkLWxvZ28tYy1sYi5zdmciLCJvcmdhbml6YXRpb25fbmFtZSI6IlNQSUQgT0lEQyBpZGVudGl0eSBwcm92aWRlciIsIm9wX3BvbGljeV91cmkiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvb2lkYy9vcC9lbi93ZWJzaXRlL2xlZ2FsLWluZm9ybWF0aW9uLyIsInJlcXVlc3RfcGFyYW1ldGVyX3N1cHBvcnRlZCI6dHJ1ZSwicmVxdWVzdF91cmlfcGFyYW1ldGVyX3N1cHBvcnRlZCI6dHJ1ZSwicmVxdWlyZV9yZXF1ZXN0X3VyaV9yZWdpc3RyYXRpb24iOnRydWUsInJlc3BvbnNlX3R5cGVzX3N1cHBvcnRlZCI6WyJjb2RlIl0sInN1YmplY3RfdHlwZXNfc3VwcG9ydGVkIjpbInBhaXJ3aXNlIiwicHVibGljIl0sInRva2VuX2VuZHBvaW50X2F1dGhfbWV0aG9kc19zdXBwb3J0ZWQiOlsicHJpdmF0ZV9rZXlfand0Il0sInRva2VuX2VuZHBvaW50X2F1dGhfc2lnbmluZ19hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSUzI1NiIsIlJTMzg0IiwiUlM1MTIiLCJFUzI1NiIsIkVTMzg0IiwiRVM1MTIiXSwidXNlcmluZm9fZW5jcnlwdGlvbl9hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSU0EtT0FFUCIsIlJTQS1PQUVQLTI1NiIsIkVDREgtRVMiLCJFQ0RILUVTK0ExMjhLVyIsIkVDREgtRVMrQTE5MktXIiwiRUNESC1FUytBMjU2S1ciXSwidXNlcmluZm9fZW5jcnlwdGlvbl9lbmNfdmFsdWVzX3N1cHBvcnRlZCI6WyJBMTI4Q0JDLUhTMjU2IiwiQTE5MkNCQy1IUzM4NCIsIkEyNTZDQkMtSFM1MTIiLCJBMTI4R0NNIiwiQTE5MkdDTSIsIkEyNTZHQ00iXSwidXNlcmluZm9fc2lnbmluZ19hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSUzI1NiIsIlJTMzg0IiwiUlM1MTIiLCJFUzI1NiIsIkVTMzg0IiwiRVM1MTIiXSwicmVxdWVzdF9vYmplY3RfZW5jcnlwdGlvbl9hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSU0EtT0FFUCIsIlJTQS1PQUVQLTI1NiIsIkVDREgtRVMiLCJFQ0RILUVTK0ExMjhLVyIsIkVDREgtRVMrQTE5MktXIiwiRUNESC1FUytBMjU2S1ciXSwicmVxdWVzdF9vYmplY3RfZW5jcnlwdGlvbl9lbmNfdmFsdWVzX3N1cHBvcnRlZCI6WyJBMTI4Q0JDLUhTMjU2IiwiQTE5MkNCQy1IUzM4NCIsIkEyNTZDQkMtSFM1MTIiLCJBMTI4R0NNIiwiQTE5MkdDTSIsIkEyNTZHQ00iXSwicmVxdWVzdF9vYmplY3Rfc2lnbmluZ19hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSUzI1NiIsIlJTMzg0IiwiUlM1MTIiLCJFUzI1NiIsIkVTMzg0IiwiRVM1MTIiXX19LCJhdXRob3JpdHlfaGludHMiOlsiaHR0cDovLzEyNy4wLjAuMTo4MDAwLyJdfQ.n4Iut7R3JwLSCnH0PMoF3huC0Ie_XBqvKX666OJqw01XMWSD7fgwGmSxhd7DoJ4dhQi31iLGuvYAmd0jct6fY6Q2MXVOGT8_jYh8roAyDDP-MdfmOHp0OfAyx8guuiELM-oyfNdRlcWtP0JRxWLW57JmR572Xr-UcOV8mpbYFkUJ0pixYZGMtYd1qLUahutSurD0I-6mCnEc5OiFctFwXjVcJ5yVby0qc5WMEKlzneLJifzgpJu1KVW361_YHlc_lJW3RLr6NOj6WdHUy7EF4MrztdTK8268SOHW66J-tPCLGCGe8JwC_x0OgP39_6SPHrtEgojAd6hQnFtowXVwvg",
+        \\    "eyJhbGciOiJSUzI1NiIsImtpZCI6IkJYdmZybG5oQU11SFIwN2FqVW1BY0JSUWNTem13MGNfUkFnSm5wUy05V1EiLCJ0eXAiOiJlbnRpdHktc3RhdGVtZW50K2p3dCJ9.eyJleHAiOjE2NTA3MzA4MjcsImlhdCI6MTY1MDcyODg0NywiaXNzIjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwLyIsInN1YiI6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC8iLCJqd2tzIjp7ImtleXMiOlt7Imt0eSI6IlJTQSIsImUiOiJBUUFCIiwibiI6Im84SW9sUmpabGt6Y3QtNDhyaHJWbFRuWVUxcGtNYlZKRC1EVTA1b01TOVJWR3JzRnlwZzk4bS1LdzRINHFOUHlRVngyT1FPUmkteFNoZ2s3SFUtZ0tfMnBWZ3VZa3YwNkZhakxfZWRFQXFxc3F0Xzc0UWYyV0xSQzVwZkpHX3o5T1B6WThKR3lrLXozU2JlSE5fQlhLSThHWTVFNFdVMlNzdG1ROWZ5TDRDeHRSZmpVaWE4bGltVENfM01PcFQzemk1bnIwM2pmYmpwbmpnYTUxcVh1cnhubHpjM2FfeGprNVJBQXBLeFV2TndoSjI3NU0wQ21COTlEalB3RjZCTHZVZ0pxZ3lDcFVPbjM2TE9oSTRGcXVWcWhxaGl3S2xNbWlNZTN5eTB5TlE3RlhCV3hqemhleGJweWMzVnU3ekZJSFBBY0M0VXlJUWhjM3dhRWoydmlYdyIsImtpZCI6IkJYdmZybG5oQU11SFIwN2FqVW1BY0JSUWNTem13MGNfUkFnSm5wUy05V1EifV19LCJtZXRhZGF0YSI6eyJmZWRlcmF0aW9uX2VudGl0eSI6eyJjb250YWN0cyI6WyJvcHNAbG9jYWxob3N0Il0sImZlZGVyYXRpb25fZmV0Y2hfZW5kcG9pbnQiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvZmV0Y2gvIiwiZmVkZXJhdGlvbl9yZXNvbHZlX2VuZHBvaW50IjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwL3Jlc29sdmUvIiwiZmVkZXJhdGlvbl9zdGF0dXNfZW5kcG9pbnQiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvdHJ1c3RfbWFya19zdGF0dXMvIiwiaG9tZXBhZ2VfdXJpIjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwIiwibmFtZSI6ImV4YW1wbGUgVEEiLCJmZWRlcmF0aW9uX2xpc3RfZW5kcG9pbnQiOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvbGlzdC8ifX0sInRydXN0X21hcmtzX2lzc3VlcnMiOnsiaHR0cHM6Ly93d3cuc3BpZC5nb3YuaXQvY2VydGlmaWNhdGlvbi9ycC9wdWJsaWMiOlsiaHR0cHM6Ly9yZWdpc3RyeS5zcGlkLmFnaWQuZ292Lml0IiwiaHR0cHM6Ly9wdWJsaWMuaW50ZXJtZWRpYXJ5LnNwaWQuaXQiXSwiaHR0cHM6Ly93d3cuc3BpZC5nb3YuaXQvY2VydGlmaWNhdGlvbi9ycC9wcml2YXRlIjpbImh0dHBzOi8vcmVnaXN0cnkuc3BpZC5hZ2lkLmdvdi5pdCIsImh0dHBzOi8vcHJpdmF0ZS5vdGhlci5pbnRlcm1lZGlhcnkuaXQiXSwiaHR0cHM6Ly9zZ2QuYWEuaXQvb25ib2FyZGluZyI6WyJodHRwczovL3NnZC5hYS5pdCJdfSwiY29uc3RyYWludHMiOnsibWF4X3BhdGhfbGVuZ3RoIjoxfX0.fMQvcBAK4hFMJ2EU6dIR4wHTfNj_8yxohS_QcPHSPuFgMwqnhmAou6xDpv3L0TsibuU7Gnc4GRc2El8_9wVuXsUJOsAa2DpDJg6zoIa-XmLKjFKTpRDj735vcZb_wJqlXPTWI3AGRb1xAUKYF7BIg0KxIDjzOkLqkz8-XfmyHhESgnVXudITRaFad1nijYb1jb7ivLvgV3wdZ5IsKDaDV5Ys9ICTmSnMAEEmwYKWltWHj4bcqLs_diXL14wTJyzySvqG7FwSrVOS4qTdlfEqMuxOJ0b4Nr7L92DtG9KxxdMluBLZDmRwoL3rKu24vDvgfzftAxaoR57QH3IC4Qvp8A",
+        \\    [
+        \\      "eyJhbGciOiJSUzI1NiIsImtpZCI6IkJYdmZybG5oQU11SFIwN2FqVW1BY0JSUWNTem13MGNfUkFnSm5wUy05V1EiLCJ0eXAiOiJlbnRpdHktc3RhdGVtZW50K2p3dCJ9.eyJleHAiOjE2NTA5MDE2NDcsImlhdCI6MTY1MDcyODg0NywiaXNzIjoiaHR0cDovLzEyNy4wLjAuMTo4MDAwLyIsInN1YiI6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9vaWRjL29wLyIsImp3a3MiOnsia2V5cyI6W3sia3R5IjoiUlNBIiwiZSI6IkFRQUIiLCJuIjoiMUFZR0YwQ19qNUNQZVlNUkhfbWtobll0bnZNX0NtZGxXU0ZISzlZRWFzM2dKMTkyMkRuaEZ4M0VJdzFVLWtad3c3YmdOejZDMWxfMWN5amtnQlN1V3hPYk9iSzR6VkxaQkdVWmZYTUJORm0yaGRyNVZvTEtMZW10WkhwQk9tZHN4UjFSM1RKMzBEMHZZLUxKYlV0cnd1UkM4b09DWUk1d2hjRWM4QjR1dEVleDNXNmRDakJJanNHZmRKSXFaSGhmTE4zeHdQTU9qa0c1QV95OFduVFZmR3E5T1VldWFVbjMtUFZzM085TE1wT0JsYVQ3R3JlWGdVcVdBVy16eFVDc2lISFVWbDl1SUFHaTVPSHVrSXVCczJDbEFsTVhfUzZtYk43XzdLSUd4Mm1USXJjZ1ZCUEpnWW9wOXFuU3FjWHViX0VRVEtzRnROR2lnc1VGbkRxRk5RIiwia2lkIjoiY0k4cEJ2V2RIZ2N2bGRtSTdIWGJQTWZGaFNLa2ZBQ0lib2ZzRDZxMkp0RSJ9XX0sIm1ldGFkYXRhX3BvbGljeSI6eyJvcGVuaWRfcHJvdmlkZXIiOnsic3ViamVjdF90eXBlc19zdXBwb3J0ZWQiOnsidmFsdWUiOlsicGFpcndpc2UiXX0sImlkX3Rva2VuX3NpZ25pbmdfYWxnX3ZhbHVlc19zdXBwb3J0ZWQiOnsic3Vic2V0X29mIjpbIlJTMjU2IiwiUlMzODQiLCJSUzUxMiIsIkVTMjU2IiwiRVMzODQiLCJFUzUxMiJdfSwidXNlcmluZm9fc2lnbmluZ19hbGdfdmFsdWVzX3N1cHBvcnRlZCI6eyJzdWJzZXRfb2YiOlsiUlMyNTYiLCJSUzM4NCIsIlJTNTEyIiwiRVMyNTYiLCJFUzM4NCIsIkVTNTEyIl19LCJ0b2tlbl9lbmRwb2ludF9hdXRoX21ldGhvZHNfc3VwcG9ydGVkIjp7InZhbHVlIjpbInByaXZhdGVfa2V5X2p3dCJdfSwidXNlcmluZm9fZW5jcnlwdGlvbl9hbGdfdmFsdWVzX3N1cHBvcnRlZCI6eyJzdWJzZXRfb2YiOlsiUlNBLU9BRVAiLCJSU0EtT0FFUC0yNTYiLCJFQ0RILUVTIiwiRUNESC1FUytBMTI4S1ciLCJFQ0RILUVTK0ExOTJLVyIsIkVDREgtRVMrQTI1NktXIl19LCJ1c2VyaW5mb19lbmNyeXB0aW9uX2VuY192YWx1ZXNfc3VwcG9ydGVkIjp7InN1YnNldF9vZiI6WyJBMTI4Q0JDLUhTMjU2IiwiQTE5MkNCQy1IUzM4NCIsIkEyNTZDQkMtSFM1MTIiLCJBMTI4R0NNIiwiQTE5MkdDTSIsIkEyNTZHQ00iXX0sInJlcXVlc3Rfb2JqZWN0X2VuY3J5cHRpb25fYWxnX3ZhbHVlc19zdXBwb3J0ZWQiOnsic3Vic2V0X29mIjpbIlJTQS1PQUVQIiwiUlNBLU9BRVAtMjU2IiwiRUNESC1FUyIsIkVDREgtRVMrQTEyOEtXIiwiRUNESC1FUytBMTkyS1ciLCJFQ0RILUVTK0EyNTZLVyJdfSwicmVxdWVzdF9vYmplY3RfZW5jcnlwdGlvbl9lbmNfdmFsdWVzX3N1cHBvcnRlZCI6eyJzdWJzZXRfb2YiOlsiQTEyOENCQy1IUzI1NiIsIkExOTJDQkMtSFMzODQiLCJBMjU2Q0JDLUhTNTEyIiwiQTEyOEdDTSIsIkExOTJHQ00iLCJBMjU2R0NNIl19LCJyZXF1ZXN0X29iamVjdF9zaWduaW5nX2FsZ192YWx1ZXNfc3VwcG9ydGVkIjp7InN1YnNldF9vZiI6WyJSUzI1NiIsIlJTMzg0IiwiUlM1MTIiLCJFUzI1NiIsIkVTMzg0IiwiRVM1MTIiXX19fSwidHJ1c3RfbWFya3MiOlt7ImlkIjoiaHR0cHM6Ly93d3cuc3BpZC5nb3YuaXQvb3BlbmlkLWZlZGVyYXRpb24vYWdyZWVtZW50L29wLXB1YmxpYy8iLCJ0cnVzdF9tYXJrIjoiZXlKaGJHY2lPaUpTVXpJMU5pSXNJbXRwWkNJNklrSllkbVp5Ykc1b1FVMTFTRkl3TjJGcVZXMUJZMEpTVVdOVGVtMTNNR05mVWtGblNtNXdVeTA1VjFFaUxDSjBlWEFpT2lKMGNuVnpkQzF0WVhKcksycDNkQ0o5LmV5SnBjM01pT2lKb2RIUndPaTh2TVRJM0xqQXVNQzR4T2pnd01EQXZJaXdpYzNWaUlqb2lhSFIwY0Rvdkx6RXlOeTR3TGpBdU1UbzRNREF3TDI5cFpHTXZiM0F2SWl3aWFXRjBJam94TmpVd056STRPRFEzTENKcFpDSTZJbWgwZEhCek9pOHZkM2QzTG5Od2FXUXVaMjkyTG1sMEwyTmxjblJwWm1sallYUnBiMjR2YjNBaUxDSnRZWEpySWpvaWFIUjBjSE02THk5M2QzY3VZV2RwWkM1bmIzWXVhWFF2ZEdobGJXVnpMMk4xYzNSdmJTOWhaMmxrTDJ4dloyOHVjM1puSWl3aWNtVm1Jam9pYUhSMGNITTZMeTlrYjJOekxtbDBZV3hwWVM1cGRDOXBkR0ZzYVdFdmMzQnBaQzl6Y0dsa0xYSmxaMjlzWlMxMFpXTnVhV05vWlMxdmFXUmpMMmwwTDNOMFlXSnBiR1V2YVc1a1pYZ3VhSFJ0YkNKOS5USHk5WWJ1Q0w0aTJUWEMyQUQtRGJqQTdQUzRqOWJFVHd1eFl6QjluV2FmSUZtV3NEeG5kSkxJNnIyZ2ZnVTVWdUJFaTRQU3ZMamh3cUtpQ2NTcnR3UkI0U2d2WnhuM2kteHZSMXFFeUJTOTZCTjgwYml6MW1BdFNwLXk3NlFvU2FDYl9xb2k1cVdHUnctMHMyVVdPUWlnLTBiZ0tJWEgzS3J0OTB5N2U2NjVsR1NnMWU3cDMzenNOSWVDcGN0N3JiNV9rUEU5N21sTkdVX2F4SHljVXNGYXg4MzlUaFZNREM0MFlfLVg4S1ZFcDNYWWwzYUlrdmxRVjgwQ2t5Q1NHY29LR0llYldXWVhLV3dhRGJfY19HS0FaQWJFTTItZldQYlpSakp4STFpVDZjd3FaVUk5elVoMzhHWm1nSmtNLTlSWE1rSGV1SktxZUFfRUJvUl92bEEifV19.hz3VNTBPEq08hstWh8KwBhNP9OnwWlS6pn-NXXG64O8FvmXsUJ8XNVmPeLyV9QtPwbSMxXs3ZZYOjvzR7fNAeCLHTQx04r7Is-tdFnAPvsN68qMbWeVtmOPS78vyLdqz4-eDA6YN49xgiCs5XHO5pyrJwU6CcznPKSJAFp40042poX8h7BU4Yx9QXKd3DedwoPfI_3pOLP53zUj4qimRJRt-3BENRu_vmFb-M4MF66ihF2raZlgs9ujn9xQ4fmpPuNQk2nxJ1cgco-5h9NYlTP8lw8cOoPKNiDp5obAf0XOmFmoxJ2Rm1RMjBpYvVDwwXO0yxZvHCJ3Zg5CPQrxxrQ"
+        \\    ]
+        \\  ]
+        \\}
+    ;
+
+    const cs = try std.json.parseFromSliceLeaky(ClaimSet, a, x, .{
+        .allocate = .alloc_always,
+        .ignore_unknown_fields = true,
+    });
+    defer cs.deinit(a);
 }

@@ -279,13 +279,22 @@ pub const navigator = struct {
             // TODO: Cross-Validate TAs
 
             for (potential_idps.items) |IdP| {
-                _ = IdP;
-                //const raw_tc = resolveTrustChain(IdP, a) catch {
-                //    // TODO: remove idp
-                //    continue;
-                //};
+                const jws = resolveTrustChain(IdP, a) catch |e| {
+                    std.log.err("unable to fetch trust chain for {s} ({any})", .{ IdP, e });
+                    // TODO: remove idp
+                    continue;
+                };
+                defer jws.deinit(a);
 
-                //a.free(raw_tc);
+                std.log.info("{any}", .{jws});
+
+                jwt.validateTrustChain(jws.payload.trust_chain.?, std.time.timestamp(), a) catch {
+                    std.log.err("trust chain validation failed", .{});
+                    // TODO: remove idp
+                    continue;
+                };
+
+                // TODO: cross validate
             }
 
             // Return selected IdP
@@ -300,7 +309,13 @@ pub const navigator = struct {
     };
 };
 
-fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) ![]const u8 {
+fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
+    _ = node;
+
+    // +++++++++++++++++++++++++++++++++++++++++++
+    // Fetch entity statement including trust chain
+    // +++++++++++++++++++++++++++++++++++++++++++
+
     // curl easy handle init, or fail
     const handle = cURL.curl_easy_init() orelse return error.CURLHandleInitFailed;
     defer cURL.curl_easy_cleanup(handle);
@@ -308,12 +323,14 @@ fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) ![]const u8 {
     var response_buffer = std.ArrayList(u8).init(a);
     errdefer response_buffer.deinit();
 
-    const url = try std.mem.concat(a, u8, &.{ node, "/resolve" });
-    defer a.free(url);
+    //const url = try std.fmt.allocPrint(a, "{s}resolve?sub={s}&anchor={s}", .{ node, node, "https://trust-anchor.testbed.oidcfed.incubator.geant.org/" });
+    //defer a.free(url);
+    // TODO: hard coded values aint good...
+    const url = "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/resolve?sub=https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/&anchor=https://trust-anchor.testbed.oidcfed.incubator.geant.org/";
+    std.log.info("requesting statement via: {s}", .{url});
 
     // setup curl options
-    //TODO: cURL.curl_url_set(
-    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url) != cURL.CURLE_OK)
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url.ptr) != cURL.CURLE_OK)
         return error.CouldNotSetURL;
 
     // set write function callbacks
@@ -326,7 +343,20 @@ fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) ![]const u8 {
     if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
         return error.FailedToPerformRequest;
 
-    return try response_buffer.toOwnedSlice();
+    std.log.info("statement: {s}", .{response_buffer.items});
+
+    // +++++++++++++++++++++++++++++++++++++++++++
+    // Now access trust chain and return it
+    // +++++++++++++++++++++++++++++++++++++++++++
+
+    const statement = try jwt.JWS.fromSlice(response_buffer.items, a);
+    defer statement.deinit(a);
+
+    if (statement.payload.trust_chain == null) {
+        return error.MissingTrustChain;
+    }
+
+    return error.Nope;
 }
 
 fn writeToArrayListCallback(data: *anyopaque, size: c_uint, nmemb: c_uint, user_data: *anyopaque) callconv(.C) c_uint {
