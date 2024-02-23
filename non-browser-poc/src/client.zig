@@ -17,6 +17,9 @@ pub const ClientPinResponse = keylib.ctap.response.ClientPin;
 pub const EcdhP256 = keylib.ctap.crypto.dh.EcdhP256;
 pub const Sha256 = std.crypto.hash.sha2.Sha256;
 
+const stdout = std.io.getStdOut();
+const stdin = std.io.getStdIn();
+
 const jwt = @import("jwt.zig");
 
 const cURL = @cImport({
@@ -25,6 +28,8 @@ const cURL = @cImport({
 
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
+var in_buffer: [100]u8 = undefined;
+var verbose = false;
 
 pub fn main() !void {
     // TODO: get the trust chain from an endpoint
@@ -37,6 +42,13 @@ pub fn main() !void {
         \\ ]
     ;
 
+    var args = std.process.args();
+    _ = args.skip();
+    const flag = args.next();
+    if (flag != null and std.mem.eql(u8, "-v", flag.?)) {
+        verbose = true;
+    }
+
     // global curl init, or fail
     if (cURL.curl_global_init(cURL.CURL_GLOBAL_ALL) != cURL.CURLE_OK)
         return error.CURLGlobalInitFailed;
@@ -46,8 +58,8 @@ pub fn main() !void {
     //
     // In this example the SP and client are the same entity. This is a perfectly conceivable scenario.
     // One example could be a conferencing application installed on the users PC that allows federated authentication.
-    // For web applications, the client (browser) has to implements resolveWAYF() as web application MUST NOT get direct
-    // access to an authenticator.
+    // For web applications, the client (browser) has to implements resolveWAYF() as web applications MUST NOT get direct
+    // access to an authenticator due to privacy and security considerations.
     const tc = try std.json.parseFromSliceLeaky(jwt.TrustChain, allocator, sp_strust_chain, .{ .allocate = .alloc_always });
     defer {
         for (tc) |ec| {
@@ -56,8 +68,13 @@ pub fn main() !void {
         allocator.free(tc);
     }
 
+    try stdout.writeAll("Welcome to the A-WAYF demo.\nDo you want to resolve an IdP based on passkeys? [Y/n]: ");
+    const answer = (try nextLine(stdin.reader(), &in_buffer)).?;
+
+    if (answer.len == 0 or answer[0] != 'Y' and answer[0] != 'y') return;
+
     // This function will derive an identity provider (IdP) for us.
-    _ = try navigator.credential.resolveWAYF(
+    const idp = try navigator.credential.resolveWAYF(
         // It takes a list of supported IdPs...
         &.{ "sso.hm.edu", "idp.orga.edu", "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/", "idp.orgb.edu" },
         // ...the trust chain of the SP...
@@ -66,8 +83,32 @@ pub fn main() !void {
         "OIDfed",
         allocator,
     );
+    defer {
+        if (idp) |idp_| {
+            allocator.free(idp_);
+        }
+    }
+
+    if (idp) |idp_| {
+        try std.fmt.format(stdout.writer(), "Redirecting to {s} for authentication\n", .{idp_});
+    } else {
+        try stdout.writeAll("No valid IdP found\n");
+    }
 
     // The next step would be to direct the user to the given IdP for authentication.
+}
+
+fn nextLine(reader: anytype, buffer: []u8) !?[]const u8 {
+    var line = (try reader.readUntilDelimiterOrEof(
+        buffer,
+        '\n',
+    )) orelse return null;
+    // trim annoying windows-only carriage return character
+    if (@import("builtin").os.tag == .windows) {
+        return std.mem.trimRight(u8, line, "\r");
+    } else {
+        return line;
+    }
 }
 
 pub const navigator = struct {
@@ -286,7 +327,8 @@ pub const navigator = struct {
                 };
                 defer jws.deinit(a);
 
-                std.log.info("{any}", .{jws});
+                if (verbose)
+                    std.log.info("{any}", .{jws});
 
                 jwt.validateTrustChain(jws.payload.trust_chain.?, std.time.timestamp(), a) catch {
                     std.log.err("trust chain validation failed", .{});
@@ -298,13 +340,25 @@ pub const navigator = struct {
             }
 
             // Return selected IdP
+            if (potential_idps.items.len == 0) return null;
 
-            std.log.info("Please select an identity provider to authenticate with:", .{});
+            try stdout.writeAll("Available identity providers:\n");
             for (potential_idps.items, 0..) |item, i| {
-                std.log.info("    [{d}] {s}", .{ i, item });
+                try std.fmt.format(stdout.writer(), "    [{d}] {s}\n", .{ i, item });
             }
 
-            return null;
+            try std.fmt.format(stdout.writer(), "Please select an identity provider for authentication [0-{d}]: ", .{potential_idps.items.len - 1});
+            const answer = (try nextLine(stdin.reader(), &in_buffer)).?;
+            const n = std.fmt.parseInt(usize, answer, 0) catch {
+                std.log.err("not a number", .{});
+                return null;
+            };
+            if (n >= potential_idps.items.len) {
+                std.log.err("{d} not in 0 - {d}", .{ n, potential_idps.items.len - 1 });
+                return null;
+            }
+
+            return try a.dupe(u8, potential_idps.items[n]);
         }
     };
 };
@@ -327,7 +381,8 @@ fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
     //defer a.free(url);
     // TODO: hard coded values aint good...
     const url = "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/resolve?sub=https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/&anchor=https://trust-anchor.testbed.oidcfed.incubator.geant.org/";
-    std.log.info("requesting statement via: {s}", .{url});
+    if (verbose)
+        std.log.info("requesting statement via: {s}", .{url});
 
     // setup curl options
     if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url.ptr) != cURL.CURLE_OK)
@@ -343,7 +398,8 @@ fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
     if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
         return error.FailedToPerformRequest;
 
-    std.log.info("statement: {s}", .{response_buffer.items});
+    if (verbose)
+        std.log.info("statement: {s}", .{response_buffer.items});
 
     // +++++++++++++++++++++++++++++++++++++++++++
     // Now access trust chain and return it
