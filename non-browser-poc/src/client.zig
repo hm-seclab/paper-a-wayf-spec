@@ -73,6 +73,14 @@ pub fn main() !void {
 
     if (answer.len == 0 or answer[0] != 'Y' and answer[0] != 'y') return;
 
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+    // Initial Service Access (1)
+    //
+    // The service provider wants to start an authentication
+    // process. Therefor, he uses resolveWAYF() to derive
+    // the IdP to use for authentication.
+    // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
     // This function will derive an identity provider (IdP) for us.
     const idp = try navigator.credential.resolveWAYF(
         // It takes a list of supported IdPs...
@@ -130,9 +138,12 @@ pub const navigator = struct {
             fed_protocol: []const u8,
             a: std.mem.Allocator,
         ) !?[]const u8 {
-            // ##########################################
-            // Step 2 -  Credentials Enumeration
-            // ##########################################
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // IdP Enumeration (2)
+            //
+            // First we select an authenticator and fetch all
+            // IdPs available.
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             // Select a device from all available devices
             // ------------------------------------------
@@ -261,20 +272,13 @@ pub const navigator = struct {
                 return null;
             }
 
-            // ##########################################
-            // Step 3 – Trusted IdP Selection
-            // ##########################################
-
-            if (std.mem.eql(u8, "OIDfed", fed_protocol)) {
-                // TODO: We need to implement JWT otherwise we can't really demonstrate what
-                // it means when we write "In our PoC, the signature by fake-org.net is invalid, therefore the validation fails."
-
-                // Also, this setp requires some GET and POST requests (e.g. using CURL). I should
-                // implement this with Erwin as he implements the server.
-            } else {
-                std.log.err("unsupported federation protocol {s}", .{fed_protocol});
-                return null;
-            }
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // IdP Matching (3)
+            //
+            // Here we create a new set which is the intersection of
+            // the IdPs gathered from the authenticator and the IdPs
+            // passed to resolveWAYF().
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
             // Step 3.1 – IdP Matching: Here we remove all IdPs that are not supported.
             var potential_idps = std.ArrayList([]const u8).init(a);
@@ -292,73 +296,84 @@ pub const navigator = struct {
 
             if (idp_list2.items.len == 0) return null;
 
-            // Step 3.2 – Trust Resolve:
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+            // Trust Resolve (4)
+            //
+            // To prevent potential misuse where malicious SPs attempt to deceive users
+            // into revealing their affiliation, the browser must determine whether the
+            // user’s HomeIdP and the FedSP are members of the same federation. Therefore,
+            // the list of candidate IdPs and the set of TS previously supplied to the
+            // browser by the FedSP is used to verify this trust relationship.
+            // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-            // First we have to verify that the TC of the SP is valid.
-            // TODO: As the TC is hardcoded we have to use a static time stamp.
-            try jwt.validateTrustChain(trust_chain, 1708118300, a);
+            if (std.mem.eql(u8, "OIDfed", fed_protocol)) {
+                // First we have to verify that the TC of the SP is valid.
+                // TODO: As the TC is hardcoded we have to use a static time stamp.
+                try jwt.validateTrustChain(trust_chain, 1708118300, a);
 
-            // Next, for all available IdPs we have to:
-            //     a) query the trust chain and verify it
-            //     b) mutually verify the TA provided by the SP and the TA queried for the IdP
-            // The idea behind b) is that while the first TC is controlled by the SP (i.e. not trust worthy)
-            // the second TC has been queried by the client which we trust. For desktop/mobile
-            // applications where client and SP are the same entity, we assume that the
-            // appication itself is trust worthy (the user had to proactively install it).
+                // Next, for all available IdPs we have to:
+                //     a) query the trust chain and verify it
+                //     b) mutually verify the TA provided by the SP and the TA queried for the IdP
+                // The idea behind b) is that while the first TC is controlled by the SP (i.e. not trust worthy)
+                // the second TC has been queried by the client which we trust. For desktop/mobile
+                // applications where client and SP are the same entity, we assume that the
+                // appication itself is trust worthy (the user had to proactively install it).
 
-            // TODO: Query
-            // When querying a entity-statment with a TC there are multiple places where the server
-            // might place the TC. Some of them are:
-            // 1. Within the header (see https://openid.net/specs/openid-federation-1_0.html#section-4.1)
-            // 2. Within the Body:
-            //     a) The TC is a list of base64url encoded entity-statements with "trust_chain" as key
-            //     b) The TC is a nested list of base64url encoded entity-statements. The list
-            //        starts with the leaf and TA statment over themselfs respectively. The third
-            //        element is a nested list containing the intermediate statments, e.g.
-            //        the statment of the TA over the leaf (if we have a verfy ''flat'' federation).
-            // TODO: Validate TC
-            // TODO: Cross-Validate TAs
+                for (potential_idps.items) |IdP| {
+                    const jws = resolveTrustChain(IdP, a) catch |e| {
+                        std.log.err("unable to fetch trust chain for {s} ({any})", .{ IdP, e });
+                        // TODO: remove idp
+                        continue;
+                    };
+                    defer jws.deinit(a);
 
-            for (potential_idps.items) |IdP| {
-                const jws = resolveTrustChain(IdP, a) catch |e| {
-                    std.log.err("unable to fetch trust chain for {s} ({any})", .{ IdP, e });
-                    // TODO: remove idp
-                    continue;
+                    if (verbose)
+                        std.log.info("{any}", .{jws});
+
+                    jwt.validateTrustChain(jws.payload.trust_chain.?, std.time.timestamp(), a) catch {
+                        std.log.err("trust chain validation failed", .{});
+                        // TODO: remove idp
+                        continue;
+                    };
+
+                    // TODO: cross validate
+                }
+
+                // Return selected IdP
+                if (potential_idps.items.len == 0) return null;
+
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                // User Dialog (5)
+                //
+                // To proceed with the A-WAYF process, user consent must be
+                // obtained through a mediation dialog.
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+                try stdout.writeAll("Available identity providers:\n");
+                for (potential_idps.items, 0..) |item, i| {
+                    try std.fmt.format(stdout.writer(), "    [{d}] {s}\n", .{ i, item });
+                }
+
+                try std.fmt.format(stdout.writer(), "Please select an identity provider for authentication [0-{d}]: ", .{potential_idps.items.len - 1});
+                const answer = (try nextLine(stdin.reader(), &in_buffer)).?;
+                const n = std.fmt.parseInt(usize, answer, 0) catch {
+                    std.log.err("not a number", .{});
+                    return null;
                 };
-                defer jws.deinit(a);
+                if (n >= potential_idps.items.len) {
+                    std.log.err("{d} not in 0 - {d}", .{ n, potential_idps.items.len - 1 });
+                    return null;
+                }
 
-                if (verbose)
-                    std.log.info("{any}", .{jws});
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+                // WAYF Response (6)
+                // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-                jwt.validateTrustChain(jws.payload.trust_chain.?, std.time.timestamp(), a) catch {
-                    std.log.err("trust chain validation failed", .{});
-                    // TODO: remove idp
-                    continue;
-                };
-
-                // TODO: cross validate
-            }
-
-            // Return selected IdP
-            if (potential_idps.items.len == 0) return null;
-
-            try stdout.writeAll("Available identity providers:\n");
-            for (potential_idps.items, 0..) |item, i| {
-                try std.fmt.format(stdout.writer(), "    [{d}] {s}\n", .{ i, item });
-            }
-
-            try std.fmt.format(stdout.writer(), "Please select an identity provider for authentication [0-{d}]: ", .{potential_idps.items.len - 1});
-            const answer = (try nextLine(stdin.reader(), &in_buffer)).?;
-            const n = std.fmt.parseInt(usize, answer, 0) catch {
-                std.log.err("not a number", .{});
-                return null;
-            };
-            if (n >= potential_idps.items.len) {
-                std.log.err("{d} not in 0 - {d}", .{ n, potential_idps.items.len - 1 });
+                return try a.dupe(u8, potential_idps.items[n]);
+            } else {
+                std.log.err("unsupported federation protocol {s}", .{fed_protocol});
                 return null;
             }
-
-            return try a.dupe(u8, potential_idps.items[n]);
         }
     };
 };
