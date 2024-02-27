@@ -7,6 +7,8 @@ This is a proof of concept implementation for the _A-WAYF: Automated Where Are Y
 The following dependencies are required to build the project:
 
 * [Zig 0.11.0](https://ziglang.org/download/)
+* Curl library and headers
+    * Ubuntu: `sudo apt install libcurl4-gnutls-dev`
 
 After you've installed all required dependencies run `zig build` to
 build the authenticator and client executables. The executables will
