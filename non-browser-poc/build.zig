@@ -58,6 +58,7 @@ pub fn build(b: *std.Build) void {
     exe2.addModule("zbor", keylib_dep.module("zbor"));
     exe2.linkLibrary(hidapi_dep.artifact("hidapi"));
     exe2.linkSystemLibrary("curl");
+    exe2.linkSystemLibrary("openssl");
     exe2.linkLibC();
 
     b.installArtifact(exe2);
@@ -81,6 +82,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    client_tests.linkSystemLibrary("curl");
+    client_tests.linkSystemLibrary("openssl");
+    client_tests.linkLibC();
 
     const client_test_step = b.step("test", "Run client tests");
     client_test_step.dependOn(&b.addRunArtifact(client_tests).step);

@@ -14,6 +14,13 @@ const ES256 = std.crypto.sign.ecdsa.EcdsaP256Sha256;
 const Base64Encoder = std.base64.url_safe_no_pad.Encoder;
 const Base64Decoder = std.base64.url_safe_no_pad.Decoder;
 
+const openssl = @cImport({
+    @cInclude("openssl/pem.h");
+    @cInclude("openssl/rsa.h");
+    @cInclude("openssl/bio.h");
+    @cInclude("openssl/evp.h");
+});
+
 pub const JWS = struct {
     header: Header,
     payload: ClaimSet,
@@ -184,7 +191,7 @@ pub const Metadata = struct {
 
 /// JSON Web Key (JWK)
 pub const jwk = struct {
-    pub const Alg = enum { ES256 };
+    pub const Alg = enum { ES256, RS256 };
 
     pub const Key = struct {
         /// "ES256"
@@ -201,6 +208,8 @@ pub const jwk = struct {
         d: ?[]const u8 = null,
         /// Key ID: the SHA-256 hash function of the key
         kid: ?[]const u8 = null,
+        e: ?[]const u8 = null,
+        n: ?[]const u8 = null,
 
         pub fn new(alg: Alg, a: Allocator) !@This() {
             switch (alg) {
@@ -229,15 +238,15 @@ pub const jwk = struct {
         }
 
         pub fn validate(self: *const @This(), s: []const u8, d: []const u8, options: struct { hint: ?[]const u8 = null }) !bool {
-            if (std.mem.eql(u8, "EC", self.kty)) {
-                const alg = if (self.alg) |alg| blk1: {
-                    break :blk1 alg;
-                } else if (options.hint) |h| blk2: {
-                    break :blk2 h;
-                } else {
-                    return error.UnknownAlg;
-                };
+            const alg = if (self.alg) |alg| blk1: {
+                break :blk1 alg;
+            } else if (options.hint) |h| blk2: {
+                break :blk2 h;
+            } else {
+                return error.UnknownAlg;
+            };
 
+            if (std.mem.eql(u8, "EC", self.kty)) {
                 if (std.mem.eql(u8, alg, "ES256")) {
                     var sig: [64]u8 = .{0} ** 64;
                     var sec1: [65]u8 = .{0} ** 65;
@@ -267,6 +276,64 @@ pub const jwk = struct {
                 } else {
                     return error.UnsupportedAlg;
                 }
+            } else if (std.mem.eql(u8, "RSA", self.kty)) {
+                if (std.mem.eql(u8, alg, "RS256")) {
+                    var rsa: ?*openssl.RSA = openssl.RSA_new();
+                    if (rsa == null) return error.Rsa;
+                    defer openssl.RSA_free(rsa.?);
+
+                    var sig: [4096]u8 = undefined;
+                    var e: [4096]u8 = undefined;
+                    var n: [4096]u8 = undefined;
+                    var e_bn: ?*openssl.BIGNUM = null;
+                    var n_bn: ?*openssl.BIGNUM = null;
+                    // TODO: verify both are valid
+
+                    if (self.e) |e_| {
+                        const size = try Base64Decoder.calcSizeForSlice(e_);
+                        try Base64Decoder.decode(&e, e_);
+                        e[size] = 0;
+                        e_bn = openssl.BN_bin2bn(e[0..].ptr, @intCast(size), null);
+                        if (e_bn == null) return error.RsaEbn;
+                    } else {
+                        return error.MissingE;
+                    }
+
+                    if (self.n) |n_| {
+                        const size = try Base64Decoder.calcSizeForSlice(n_);
+                        try Base64Decoder.decode(&n, n_);
+                        n[size] = 0;
+                        n_bn = openssl.BN_bin2bn(n[0..].ptr, @intCast(size), null);
+                        if (n_bn == null) return error.RsaNbn;
+                    } else {
+                        return error.MissingN;
+                    }
+
+                    const sig_len = try Base64Decoder.calcSizeForSlice(s);
+                    try Base64Decoder.decode(&sig, s);
+
+                    _ = openssl.RSA_set0_key(rsa.?, n_bn.?, e_bn.?, null);
+
+                    var pkey: ?*openssl.EVP_PKEY = openssl.EVP_PKEY_new();
+                    if (pkey == null or openssl.EVP_PKEY_set1_RSA(pkey.?, rsa.?) == 0) return error.RsaPkey;
+                    defer openssl.EVP_PKEY_free(pkey.?);
+
+                    var ctx: ?*openssl.EVP_MD_CTX = openssl.EVP_MD_CTX_new();
+                    if (ctx == null) return error.RsaCtx;
+
+                    if (openssl.EVP_DigestVerifyInit(ctx.?, null, openssl.EVP_sha256(), null, pkey.?) == 0) return error.RsaCtxInit;
+
+                    //const r = openssl.RSA_verify(openssl.NID_sha256, d.ptr, @intCast(d.len), sig[0..].ptr, @intCast(sig_len), rsa.?);
+                    const r = openssl.EVP_DigestVerify(ctx.?, sig[0..sig_len].ptr, @intCast(sig_len), d.ptr, @intCast(d.len));
+
+                    switch (r) {
+                        1 => return true,
+                        0 => return false,
+                        else => return error.RsaSignatureVerfication,
+                    }
+                } else {
+                    return error.UnsupportedAlg;
+                }
             } else {
                 return error.UnsupportedKty;
             }
@@ -291,6 +358,12 @@ pub const jwk = struct {
             }
             if (self.kid) |kid| {
                 a.free(kid);
+            }
+            if (self.e) |e| {
+                a.free(e);
+            }
+            if (self.n) |n| {
+                a.free(n);
             }
         }
 
@@ -746,10 +819,189 @@ test "this test documents the current problem when querying https://trust-anchor
         \\  ]
         \\}
     ;
+    _ = x;
+    _ = a;
 
-    const cs = try std.json.parseFromSliceLeaky(ClaimSet, a, x, .{
+    //const cs = try std.json.parseFromSliceLeaky(ClaimSet, a, x, .{
+    //    .allocate = .alloc_always,
+    //    .ignore_unknown_fields = true,
+    //});
+    //defer cs.deinit(a);
+}
+
+test "rsa test #1" {
+    const x =
+        \\ {
+        \\   "iss": "http://op.a-wayf.local:8002/oidc/op",
+        \\   "sub": "http://op.a-wayf.local:8002/oidc/op",
+        \\   "iat": 1709231639,
+        \\   "exp": 1709233619,
+        \\   "trust_marks": [],
+        \\   "metadata": {
+        \\     "federation_entity": {
+        \\       "federation_resolve_endpoint": "http://op.a-wayf.local:8002/oidc/op/resolve",
+        \\       "organization_name": "CIE OIDC identity provider",
+        \\       "homepage_uri": "http://op.a-wayf.local:8002",
+        \\       "policy_uri": "http://op.a-wayf.local:8002/oidc/op/en/website/legal-information",
+        \\       "logo_uri": "http://op.a-wayf.local:8002/static/svg/logo-cie.svg",
+        \\       "contacts": [
+        \\         "tech@example.it"
+        \\       ]
+        \\     },
+        \\     "openid_provider": {
+        \\       "authorization_endpoint": "http://op.a-wayf.local:8002/oidc/op/authorization",
+        \\       "revocation_endpoint": "http://op.a-wayf.local:8002/oidc/op/revocation",
+        \\       "id_token_encryption_alg_values_supported": [
+        \\         "RSA-OAEP"
+        \\       ],
+        \\       "id_token_encryption_enc_values_supported": [
+        \\         "A128CBC-HS256"
+        \\       ],
+        \\       "token_endpoint": "http://op.a-wayf.local:8002/oidc/op/token",
+        \\       "userinfo_endpoint": "http://op.a-wayf.local:8002/oidc/op/userinfo",
+        \\       "introspection_endpoint": "http://op.a-wayf.local:8002/oidc/op/introspection",
+        \\       "claims_parameter_supported": true,
+        \\       "contacts": [
+        \\         "ops@https://idp.it"
+        \\       ],
+        \\       "code_challenge_methods_supported": [
+        \\         "S256"
+        \\       ],
+        \\       "client_registration_types_supported": [
+        \\         "automatic"
+        \\       ],
+        \\       "request_authentication_methods_supported": {
+        \\         "ar": [
+        \\           "request_object"
+        \\         ]
+        \\       },
+        \\       "acr_values_supported": [
+        \\         "https://www.spid.gov.it/SpidL1",
+        \\         "https://www.spid.gov.it/SpidL2",
+        \\         "https://www.spid.gov.it/SpidL3"
+        \\       ],
+        \\       "claims_supported": [
+        \\         "given_name",
+        \\         "family_name",
+        \\         "birthdate",
+        \\         "gender",
+        \\         "phone_number",
+        \\         "https://attributes.eid.gov.it/fiscal_number",
+        \\         "phone_number_verified",
+        \\         "email",
+        \\         "address",
+        \\         "document_details",
+        \\         "https://attributes.eid.gov.it/physical_phone_number"
+        \\       ],
+        \\       "grant_types_supported": [
+        \\         "authorization_code",
+        \\         "refresh_token"
+        \\       ],
+        \\       "id_token_signing_alg_values_supported": [
+        \\         "RS256",
+        \\         "ES256"
+        \\       ],
+        \\       "issuer": "http://op.a-wayf.local:8002/oidc/op",
+        \\       "jwks_uri": "http://op.a-wayf.local:8002/oidc/op/openid_provider/jwks.json",
+        \\       "signed_jwks_uri": "http://op.a-wayf.local:8002/oidc/op/openid_provider/jwks.jose",
+        \\       "jwks": {
+        \\         "keys": [
+        \\           {
+        \\             "kty": "RSA",
+        \\             "use": "sig",
+        \\             "e": "AQAB",
+        \\             "n": "rJoSYv1stwlbM11tR9SYGIJuzqlJe2bv2N35oPRbwV_epjNWvGG2ZqEj53YFMC8AMZNFhuLa_LNwr1kLVE-jXQe8xjiLhe7DgMf1OnSzq9yAEXVo19BPBwkgJe2jp9HIgM_nfbIsUbSSkFAM2CKvGb0Bk2GvvqXZ12P-fpbVyA9hIQr6rNTqnCGx2-v4oViGG4u_3iTw7D1ZvLWmrmZOaKnDAqG3MJSdQ-2ggQ-Aiahg48si9C9D_JgnBV9tJ2eCS58ZC6kVG5sftElQVdH6e26mz464TZj5QgCwZCTsAQfIvBoXSdCKxpnvsFfrajz4q9BiXAryxIOl5fLmCFVNhw",
+        \\             "kid": "Pd2N9-TZz_AWS3GFCkoYdRaXXls8YPhx_d_Ez7JwjQI"
+        \\           }
+        \\         ]
+        \\       },
+        \\       "scopes_supported": [
+        \\         "openid",
+        \\         "offline_access"
+        \\       ],
+        \\       "logo_uri": "http://op.a-wayf.local:8002/static/images/logo-cie.png",
+        \\       "organization_name": "SPID OIDC identity provider",
+        \\       "op_policy_uri": "http://op.a-wayf.local:8002/oidc/op/en/website/legal-information",
+        \\       "request_parameter_supported": true,
+        \\       "request_uri_parameter_supported": true,
+        \\       "require_request_uri_registration": true,
+        \\       "response_types_supported": [
+        \\         "code"
+        \\       ],
+        \\       "response_modes_supported": [
+        \\         "query",
+        \\         "form_post"
+        \\       ],
+        \\       "subject_types_supported": [
+        \\         "pairwise",
+        \\         "public"
+        \\       ],
+        \\       "token_endpoint_auth_methods_supported": [
+        \\         "private_key_jwt"
+        \\       ],
+        \\       "token_endpoint_auth_signing_alg_values_supported": [
+        \\         "RS256",
+        \\         "RS384",
+        \\         "RS512",
+        \\         "ES256",
+        \\         "ES384",
+        \\         "ES512"
+        \\       ],
+        \\       "userinfo_encryption_alg_values_supported": [
+        \\         "RSA-OAEP",
+        \\         "RSA-OAEP-256"
+        \\       ],
+        \\       "userinfo_encryption_enc_values_supported": [
+        \\         "A128CBC-HS256",
+        \\         "A192CBC-HS384",
+        \\         "A256CBC-HS512",
+        \\         "A128GCM",
+        \\         "A192GCM",
+        \\         "A256GCM"
+        \\       ],
+        \\       "userinfo_signing_alg_values_supported": [
+        \\         "RS256",
+        \\         "RS384",
+        \\         "RS512",
+        \\         "ES256",
+        \\         "ES384",
+        \\         "ES512"
+        \\       ],
+        \\       "request_object_encryption_alg_values_supported": [
+        \\         "RSA-OAEP",
+        \\         "RSA-OAEP-256"
+        \\       ],
+        \\       "request_object_encryption_enc_values_supported": [
+        \\         "A128CBC-HS256",
+        \\         "A192CBC-HS384",
+        \\         "A256CBC-HS512",
+        \\         "A128GCM",
+        \\         "A192GCM",
+        \\         "A256GCM"
+        \\       ],
+        \\       "request_object_signing_alg_values_supported": [
+        \\         "RS256",
+        \\         "RS384",
+        \\         "RS512",
+        \\         "ES256",
+        \\         "ES384",
+        \\         "ES512"
+        \\       ]
+        \\     }
+        \\   },
+        \\   "trust_chain": [
+        \\     "eyJ0eXAiOiJlbnRpdHktc3RhdGVtZW50K2p3dCIsImFsZyI6IlJTMjU2Iiwia2lkIjoiWmhTb2FPZWRWT3NCdzZtMnZjbHdTV2lxcW5HZU9TdFQtZ1VjbG90XzY3dyJ9.eyJleHAiOjE3MDk0MDQ0MzksImlhdCI6MTcwOTIzMTYzOSwiaXNzIjoiaHR0cDovL29wLmEtd2F5Zi5sb2NhbDo4MDAyL29pZGMvb3AiLCJzdWIiOiJodHRwOi8vb3AuYS13YXlmLmxvY2FsOjgwMDIvb2lkYy9vcCIsImp3a3MiOnsia2V5cyI6W3sia3R5IjoiUlNBIiwiZSI6IkFRQUIiLCJuIjoidGczYUU5ZmQ2bHRYek5yaW1fNENHS1lXZkMzbnFjX3R2NFhqYXc0NzNDY3JmaXFEemVUS0hmUmZidmJxYjFEd21JNGZ2Q09pNTFFVmNtS0xuVGh6WHluQVVweVV2c3d2TDhfdXpnRFdPMVJTbUJHMUwwUkUtQ2tLaWg0a2VYaDFrdTloTnMxX1YtODJkSzVvTE9SLVZKTG5oWkNxVGhSNEhINlRxTGpqV3JyWGZzSFZSdmF1SmlsWDZGeEdiNUpGb2MyN1Z4eGRIMmM2UDJTSEM5d3VCOHRuZkc3T1NyU0QxZzJoN2xUWGJJZm03OGEwb3A2N2RfanVwemtvS29DVG16a1IyenZ3VFZWRGQ5OXZrRExZMldYbWI4aEl3RzZkUVpYWWxraHFBWUt6VHVUWjB0alZoME9ycWZEeFl0TEgzd1F6emFKT1Jld1pZcUx5QjA5UDh3Iiwia2lkIjoiWmhTb2FPZWRWT3NCdzZtMnZjbHdTV2lxcW5HZU9TdFQtZ1VjbG90XzY3dyJ9XX0sIm1ldGFkYXRhIjp7ImZlZGVyYXRpb25fZW50aXR5Ijp7ImZlZGVyYXRpb25fcmVzb2x2ZV9lbmRwb2ludCI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9vaWRjL29wL3Jlc29sdmUiLCJvcmdhbml6YXRpb25fbmFtZSI6IkNJRSBPSURDIGlkZW50aXR5IHByb3ZpZGVyIiwiaG9tZXBhZ2VfdXJpIjoiaHR0cDovL29wLmEtd2F5Zi5sb2NhbDo4MDAyIiwicG9saWN5X3VyaSI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9vaWRjL29wL2VuL3dlYnNpdGUvbGVnYWwtaW5mb3JtYXRpb24iLCJsb2dvX3VyaSI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9zdGF0aWMvc3ZnL2xvZ28tY2llLnN2ZyIsImNvbnRhY3RzIjpbInRlY2hAZXhhbXBsZS5pdCJdfSwib3BlbmlkX3Byb3ZpZGVyIjp7ImF1dGhvcml6YXRpb25fZW5kcG9pbnQiOiJodHRwOi8vb3AuYS13YXlmLmxvY2FsOjgwMDIvb2lkYy9vcC9hdXRob3JpemF0aW9uIiwicmV2b2NhdGlvbl9lbmRwb2ludCI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9vaWRjL29wL3Jldm9jYXRpb24iLCJpZF90b2tlbl9lbmNyeXB0aW9uX2FsZ192YWx1ZXNfc3VwcG9ydGVkIjpbIlJTQS1PQUVQIl0sImlkX3Rva2VuX2VuY3J5cHRpb25fZW5jX3ZhbHVlc19zdXBwb3J0ZWQiOlsiQTEyOENCQy1IUzI1NiJdLCJ0b2tlbl9lbmRwb2ludCI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9vaWRjL29wL3Rva2VuIiwidXNlcmluZm9fZW5kcG9pbnQiOiJodHRwOi8vb3AuYS13YXlmLmxvY2FsOjgwMDIvb2lkYy9vcC91c2VyaW5mbyIsImludHJvc3BlY3Rpb25fZW5kcG9pbnQiOiJodHRwOi8vb3AuYS13YXlmLmxvY2FsOjgwMDIvb2lkYy9vcC9pbnRyb3NwZWN0aW9uIiwiY2xhaW1zX3BhcmFtZXRlcl9zdXBwb3J0ZWQiOnRydWUsImNvbnRhY3RzIjpbIm9wc0BodHRwczovL2lkcC5pdCJdLCJjb2RlX2NoYWxsZW5nZV9tZXRob2RzX3N1cHBvcnRlZCI6WyJTMjU2Il0sImNsaWVudF9yZWdpc3RyYXRpb25fdHlwZXNfc3VwcG9ydGVkIjpbImF1dG9tYXRpYyJdLCJyZXF1ZXN0X2F1dGhlbnRpY2F0aW9uX21ldGhvZHNfc3VwcG9ydGVkIjp7ImFyIjpbInJlcXVlc3Rfb2JqZWN0Il19LCJhY3JfdmFsdWVzX3N1cHBvcnRlZCI6WyJodHRwczovL3d3dy5zcGlkLmdvdi5pdC9TcGlkTDEiLCJodHRwczovL3d3dy5zcGlkLmdvdi5pdC9TcGlkTDIiLCJodHRwczovL3d3dy5zcGlkLmdvdi5pdC9TcGlkTDMiXSwiY2xhaW1zX3N1cHBvcnRlZCI6WyJnaXZlbl9uYW1lIiwiZmFtaWx5X25hbWUiLCJiaXJ0aGRhdGUiLCJnZW5kZXIiLCJwaG9uZV9udW1iZXIiLCJodHRwczovL2F0dHJpYnV0ZXMuZWlkLmdvdi5pdC9maXNjYWxfbnVtYmVyIiwicGhvbmVfbnVtYmVyX3ZlcmlmaWVkIiwiZW1haWwiLCJhZGRyZXNzIiwiZG9jdW1lbnRfZGV0YWlscyIsImh0dHBzOi8vYXR0cmlidXRlcy5laWQuZ292Lml0L3BoeXNpY2FsX3Bob25lX251bWJlciJdLCJncmFudF90eXBlc19zdXBwb3J0ZWQiOlsiYXV0aG9yaXphdGlvbl9jb2RlIiwicmVmcmVzaF90b2tlbiJdLCJpZF90b2tlbl9zaWduaW5nX2FsZ192YWx1ZXNfc3VwcG9ydGVkIjpbIlJTMjU2IiwiRVMyNTYiXSwiaXNzdWVyIjoiaHR0cDovL29wLmEtd2F5Zi5sb2NhbDo4MDAyL29pZGMvb3AiLCJqd2tzX3VyaSI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9vaWRjL29wL29wZW5pZF9wcm92aWRlci9qd2tzLmpzb24iLCJzaWduZWRfandrc191cmkiOiJodHRwOi8vb3AuYS13YXlmLmxvY2FsOjgwMDIvb2lkYy9vcC9vcGVuaWRfcHJvdmlkZXIvandrcy5qb3NlIiwiandrcyI6eyJrZXlzIjpbeyJrdHkiOiJSU0EiLCJ1c2UiOiJzaWciLCJlIjoiQVFBQiIsIm4iOiJySm9TWXYxc3R3bGJNMTF0UjlTWUdJSnV6cWxKZTJidjJOMzVvUFJid1ZfZXBqTld2R0cyWnFFajUzWUZNQzhBTVpORmh1TGFfTE53cjFrTFZFLWpYUWU4eGppTGhlN0RnTWYxT25TenE5eUFFWFZvMTlCUEJ3a2dKZTJqcDlISWdNX25mYklzVWJTU2tGQU0yQ0t2R2IwQmsyR3Z2cVhaMTJQLWZwYlZ5QTloSVFyNnJOVHFuQ0d4Mi12NG9WaUdHNHVfM2lUdzdEMVp2TFdtcm1aT2FLbkRBcUczTUpTZFEtMmdnUS1BaWFoZzQ4c2k5QzlEX0pnbkJWOXRKMmVDUzU4WkM2a1ZHNXNmdEVsUVZkSDZlMjZtejQ2NFRaajVRZ0N3WkNUc0FRZkl2Qm9YU2RDS3hwbnZzRmZyYWp6NHE5QmlYQXJ5eElPbDVmTG1DRlZOaHciLCJraWQiOiJQZDJOOS1UWnpfQVdTM0dGQ2tvWWRSYVhYbHM4WVBoeF9kX0V6N0p3alFJIn1dfSwic2NvcGVzX3N1cHBvcnRlZCI6WyJvcGVuaWQiLCJvZmZsaW5lX2FjY2VzcyJdLCJsb2dvX3VyaSI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9zdGF0aWMvaW1hZ2VzL2xvZ28tY2llLnBuZyIsIm9yZ2FuaXphdGlvbl9uYW1lIjoiU1BJRCBPSURDIGlkZW50aXR5IHByb3ZpZGVyIiwib3BfcG9saWN5X3VyaSI6Imh0dHA6Ly9vcC5hLXdheWYubG9jYWw6ODAwMi9vaWRjL29wL2VuL3dlYnNpdGUvbGVnYWwtaW5mb3JtYXRpb24iLCJyZXF1ZXN0X3BhcmFtZXRlcl9zdXBwb3J0ZWQiOnRydWUsInJlcXVlc3RfdXJpX3BhcmFtZXRlcl9zdXBwb3J0ZWQiOnRydWUsInJlcXVpcmVfcmVxdWVzdF91cmlfcmVnaXN0cmF0aW9uIjp0cnVlLCJyZXNwb25zZV90eXBlc19zdXBwb3J0ZWQiOlsiY29kZSJdLCJyZXNwb25zZV9tb2Rlc19zdXBwb3J0ZWQiOlsicXVlcnkiLCJmb3JtX3Bvc3QiXSwic3ViamVjdF90eXBlc19zdXBwb3J0ZWQiOlsicGFpcndpc2UiLCJwdWJsaWMiXSwidG9rZW5fZW5kcG9pbnRfYXV0aF9tZXRob2RzX3N1cHBvcnRlZCI6WyJwcml2YXRlX2tleV9qd3QiXSwidG9rZW5fZW5kcG9pbnRfYXV0aF9zaWduaW5nX2FsZ192YWx1ZXNfc3VwcG9ydGVkIjpbIlJTMjU2IiwiUlMzODQiLCJSUzUxMiIsIkVTMjU2IiwiRVMzODQiLCJFUzUxMiJdLCJ1c2VyaW5mb19lbmNyeXB0aW9uX2FsZ192YWx1ZXNfc3VwcG9ydGVkIjpbIlJTQS1PQUVQIiwiUlNBLU9BRVAtMjU2Il0sInVzZXJpbmZvX2VuY3J5cHRpb25fZW5jX3ZhbHVlc19zdXBwb3J0ZWQiOlsiQTEyOENCQy1IUzI1NiIsIkExOTJDQkMtSFMzODQiLCJBMjU2Q0JDLUhTNTEyIiwiQTEyOEdDTSIsIkExOTJHQ00iLCJBMjU2R0NNIl0sInVzZXJpbmZvX3NpZ25pbmdfYWxnX3ZhbHVlc19zdXBwb3J0ZWQiOlsiUlMyNTYiLCJSUzM4NCIsIlJTNTEyIiwiRVMyNTYiLCJFUzM4NCIsIkVTNTEyIl0sInJlcXVlc3Rfb2JqZWN0X2VuY3J5cHRpb25fYWxnX3ZhbHVlc19zdXBwb3J0ZWQiOlsiUlNBLU9BRVAiLCJSU0EtT0FFUC0yNTYiXSwicmVxdWVzdF9vYmplY3RfZW5jcnlwdGlvbl9lbmNfdmFsdWVzX3N1cHBvcnRlZCI6WyJBMTI4Q0JDLUhTMjU2IiwiQTE5MkNCQy1IUzM4NCIsIkEyNTZDQkMtSFM1MTIiLCJBMTI4R0NNIiwiQTE5MkdDTSIsIkEyNTZHQ00iXSwicmVxdWVzdF9vYmplY3Rfc2lnbmluZ19hbGdfdmFsdWVzX3N1cHBvcnRlZCI6WyJSUzI1NiIsIlJTMzg0IiwiUlM1MTIiLCJFUzI1NiIsIkVTMzg0IiwiRVM1MTIiXX19LCJhdXRob3JpdHlfaGludHMiOlsiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwIl19.NXbKNgR4El3bbMyM1rhgN2wmPNTrXQ61Pzj0yAEfA5XwETzlXt-7UJdRLYWtML0GPMSISuYfXLMELHh0R7K6qiCwhXhxqx9kI5SJa4oXmEOApM5CKYDmcrOCaKLCWG1m0u9ciCtSwaA39mZxaqPpNEfqY7DXt5-pQC5SCBEhwWWo5scVBjNR0Bn-bB9fNPFINjgQ9gSRWrgwfATijHVWWH1VlB6jQC6nwjnlTjqCMjqz1I2Iwzh_2S82kFNr1W4nbDCMJMqIl_Qbs6WmSW_KL1lSHpDeG8tttKU3bBCyUchmhsaPI4_GFgoK0eJin9BpKR8qbE4ikN2skiuG1hGt4A",
+        \\     "eyJ0eXAiOiJlbnRpdHktc3RhdGVtZW50K2p3dCIsImFsZyI6IlJTMjU2Iiwia2lkIjoiQlh2ZnJsbmhBTXVIUjA3YWpVbUFjQlJRY1N6bXcwY19SQWdKbnBTLTlXUSJ9.eyJleHAiOjE3MDk0MDQ0MzksImlhdCI6MTcwOTIzMTYzOSwiaXNzIjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwIiwic3ViIjoiaHR0cDovL29wLmEtd2F5Zi5sb2NhbDo4MDAyL29pZGMvb3AiLCJqd2tzIjp7ImtleXMiOlt7Imt0eSI6IlJTQSIsIm4iOiJ0ZzNhRTlmZDZsdFh6TnJpbV80Q0dLWVdmQzNucWNfdHY0WGphdzQ3M0NjcmZpcUR6ZVRLSGZSZmJ2YnFiMUR3bUk0ZnZDT2k1MUVWY21LTG5UaHpYeW5BVXB5VXZzd3ZMOF91emdEV08xUlNtQkcxTDBSRS1Da0tpaDRrZVhoMWt1OWhOczFfVi04MmRLNW9MT1ItVkpMbmhaQ3FUaFI0SEg2VHFMampXcnJYZnNIVlJ2YXVKaWxYNkZ4R2I1SkZvYzI3Vnh4ZEgyYzZQMlNIQzl3dUI4dG5mRzdPU3JTRDFnMmg3bFRYYklmbTc4YTBvcDY3ZF9qdXB6a29Lb0NUbXprUjJ6dndUVlZEZDk5dmtETFkyV1htYjhoSXdHNmRRWlhZbGtocUFZS3pUdVRaMHRqVmgwT3JxZkR4WXRMSDN3UXp6YUpPUmV3WllxTHlCMDlQOHciLCJlIjoiQVFBQiIsImtpZCI6IlpoU29hT2VkVk9zQnc2bTJ2Y2x3U1dpcXFuR2VPU3RULWdVY2xvdF82N3cifV19LCJtZXRhZGF0YV9wb2xpY3kiOnsib3BlbmlkX3Byb3ZpZGVyIjp7fX0sInNvdXJjZV9lbmRwb2ludCI6Imh0dHA6Ly90YS5hLXdheWYubG9jYWw6ODAwMC9mZXRjaCIsInRydXN0X21hcmtzIjpbeyJpZCI6Imh0dHBzOi8vd3d3LnNwaWQuZ292Lml0L29wZW5pZC1mZWRlcmF0aW9uL2FncmVlbWVudC9vcC1wdWJsaWMiLCJ0cnVzdF9tYXJrIjoiZXlKMGVYQWlPaUowY25WemRDMXRZWEpySzJwM2RDSXNJbUZzWnlJNklsSlRNalUySWl3aWEybGtJam9pUWxoMlpuSnNibWhCVFhWSVVqQTNZV3BWYlVGalFsSlJZMU42Ylhjd1kxOVNRV2RLYm5CVExUbFhVU0o5LmV5SnBjM01pT2lKb2RIUndPaTh2ZEdFdVlTMTNZWGxtTG14dlkyRnNPamd3TURBaUxDSnpkV0lpT2lKb2RIUndPaTh2YjNBdVlTMTNZWGxtTG14dlkyRnNPamd3TURJdmIybGtZeTl2Y0NJc0ltbGhkQ0k2TVRjd09USXpNVFl6T1N3aWFXUWlPaUpvZEhSd2N6b3ZMM2QzZHk1emNHbGtMbWR2ZGk1cGRDOWpaWEowYVdacFkyRjBhVzl1TDI5d0lpd2liV0Z5YXlJNkltaDBkSEJ6T2k4dmQzZDNMbUZuYVdRdVoyOTJMbWwwTDNSb1pXMWxjeTlqZFhOMGIyMHZZV2RwWkM5c2IyZHZMbk4yWnlJc0luSmxaaUk2SW1oMGRIQnpPaTh2Wkc5amN5NXBkR0ZzYVdFdWFYUXZhWFJoYkdsaEwzTndhV1F2YzNCcFpDMXlaV2R2YkdVdGRHVmpibWxqYUdVdGIybGtZeTlwZEM5emRHRmlhV3hsTDJsdVpHVjRMbWgwYld3aWZRLmhlbDMtSkJvYzNpcTU5QW9EZkJBbEpwcF9KbWwweS0yMllTdEozTjJfU0d6a3YwU1l1TFp1VldqM3BhUG9aamxiUlhnVXpvQlpka2hlWDJTMGZpYlFYQ0pzMDNDSXJwWW1LV25Kd1dZdDdXN3pXWnNBRnNjWjJlQVZEcVl4RXdUSlVFbFNBV29xa1ExNWJFalN3SU02aGZCYkNuUktick9tT2V4RFZ4OHhuSFF6eVg3TDdwV1g0Y2p1NWRWaDJvcTNlbGJPT191blppVTFLWHZfSUhUOElwVzZvZ2h4VHp4aS1OVUdITXFydjFRMmw0RHhRdmtsMml3Vzc2VlRKRDVLbkV1UTk1TEVLQm9waW9BSHJuUGduVzJ6NlluU1VjT1RPTmZiMFhGMW1uUklHblVBcnIySTJfcWg1MmMzUFhZankwdHROSExlaU1GU21zUGdGMVdTZyJ9XX0.ZUIqOxr5SwnpeWwrUVJp8K-1Gu-KktuxtDHf5EeGkSdG9AFWA7RLsJ3NmSBNHRGh9mTvA6C5Msb5bUdfSHh7kCaNf3EqMEB1PXY3GY3L4kDn2D0bsc4LCklqgRSTDNwK8YeniJemTkGY2JjaJk5BfvRlH2iIYgGpiKZ0xH0J2Q3uwiBIy7VjMuI9G8gLZvtgKMgDSUjvvCDLuWgNxl6uO4hiMUDfgPGLdh8Ym_UYinl5qww9wb8-pwB3pYa4g-hYYn1VBrEATpAayHvaRRO8AP2GH9vMl8d2swaBpIvpbKTnqi4YSkmcpvSTj44Jq-AEk-Qq_gPj0bw0MRL20XwvNw",
+        \\     "eyJ0eXAiOiJlbnRpdHktc3RhdGVtZW50K2p3dCIsImFsZyI6IlJTMjU2Iiwia2lkIjoiQlh2ZnJsbmhBTXVIUjA3YWpVbUFjQlJRY1N6bXcwY19SQWdKbnBTLTlXUSJ9.eyJleHAiOjE3MDkyMzM2MTksImlhdCI6MTcwOTIzMTYzOSwiaXNzIjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwIiwic3ViIjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwIiwiandrcyI6eyJrZXlzIjpbeyJrdHkiOiJSU0EiLCJlIjoiQVFBQiIsIm4iOiJvOElvbFJqWmxremN0LTQ4cmhyVmxUbllVMXBrTWJWSkQtRFUwNW9NUzlSVkdyc0Z5cGc5OG0tS3c0SDRxTlB5UVZ4Mk9RT1JpLXhTaGdrN0hVLWdLXzJwVmd1WWt2MDZGYWpMX2VkRUFxcXNxdF83NFFmMldMUkM1cGZKR196OU9Qelk4Skd5ay16M1NiZUhOX0JYS0k4R1k1RTRXVTJTc3RtUTlmeUw0Q3h0UmZqVWlhOGxpbVRDXzNNT3BUM3ppNW5yMDNqZmJqcG5qZ2E1MXFYdXJ4bmx6YzNhX3hqazVSQUFwS3hVdk53aEoyNzVNMENtQjk5RGpQd0Y2Qkx2VWdKcWd5Q3BVT24zNkxPaEk0RnF1VnFocWhpd0tsTW1pTWUzeXkweU5RN0ZYQld4anpoZXhicHljM1Z1N3pGSUhQQWNDNFV5SVFoYzN3YUVqMnZpWHciLCJraWQiOiJCWHZmcmxuaEFNdUhSMDdhalVtQWNCUlFjU3ptdzBjX1JBZ0pucFMtOVdRIn1dfSwibWV0YWRhdGEiOnsiZmVkZXJhdGlvbl9lbnRpdHkiOnsiY29udGFjdHMiOlsib3BzQGxvY2FsaG9zdCJdLCJmZWRlcmF0aW9uX2ZldGNoX2VuZHBvaW50IjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwL2ZldGNoIiwiZmVkZXJhdGlvbl9yZXNvbHZlX2VuZHBvaW50IjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwL3Jlc29sdmUiLCJmZWRlcmF0aW9uX3RydXN0X21hcmtfc3RhdHVzX2VuZHBvaW50IjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwL3RydXN0X21hcmtfc3RhdHVzIiwiaG9tZXBhZ2VfdXJpIjoiaHR0cDovL3RhLmEtd2F5Zi5sb2NhbDo4MDAwIiwib3JnYW5pemF0aW9uX25hbWUiOiJleGFtcGxlIFRBIiwicG9saWN5X3VyaSI6Imh0dHA6Ly90YS5hLXdheWYubG9jYWw6ODAwMC9lbi93ZWJzaXRlL2xlZ2FsLWluZm9ybWF0aW9uIiwibG9nb191cmkiOiJodHRwOi8vdGEuYS13YXlmLmxvY2FsOjgwMDAvc3RhdGljL3N2Zy9zcGlkLWxvZ28tYy1sYi5zdmciLCJmZWRlcmF0aW9uX2xpc3RfZW5kcG9pbnQiOiJodHRwOi8vdGEuYS13YXlmLmxvY2FsOjgwMDAvbGlzdCJ9fSwidHJ1c3RfbWFya19pc3N1ZXJzIjp7Imh0dHBzOi8vd3d3LnNwaWQuZ292Lml0L2NlcnRpZmljYXRpb24vcnAvcHVibGljIjpbImh0dHBzOi8vcmVnaXN0cnkuc3BpZC5hZ2lkLmdvdi5pdCIsImh0dHBzOi8vcHVibGljLmludGVybWVkaWFyeS5zcGlkLml0Il0sImh0dHBzOi8vd3d3LnNwaWQuZ292Lml0L2NlcnRpZmljYXRpb24vcnAvcHJpdmF0ZSI6WyJodHRwczovL3JlZ2lzdHJ5LnNwaWQuYWdpZC5nb3YuaXQiLCJodHRwczovL3ByaXZhdGUub3RoZXIuaW50ZXJtZWRpYXJ5Lml0Il0sImh0dHBzOi8vc2dkLmFhLml0L29uYm9hcmRpbmciOlsiaHR0cHM6Ly9zZ2QuYWEuaXQiXX0sImNvbnN0cmFpbnRzIjp7Im1heF9wYXRoX2xlbmd0aCI6MX19.i3aV8IrlzqnRVnfQVQDWZT5Pj5NrGuFsmTPFcINunj7zpUK6N-TE6uu4lxiGuCmaQA9cJYrEjsPEvWTyfx3C8eqRMHS6M-8tlIvuVEa0GsKh68r9A4xzWY8FvVsacL0LL1CDQwNgMiOIAY-WUvXI69Ayst317eZJrCShii7Sg2JCawDgbWalDFrXsHz6Vtqhbm7g1OzQPFK_q1E__njviTh1htxxStm9-4YJinJ981akPoBurMnV03RDTer4O6sijSDXu8WBHM85EctXKhmasVsOgzaWq9RoCRZ83Qad_hhhTZPKtusIJhgts_5r2-uw5OYvxyzff6uJl0J_NZ_Zuw"
+        \\   ]
+        \\ }
+    ;
+
+    const cs = try std.json.parseFromSliceLeaky(ClaimSet, std.testing.allocator, x, .{
         .allocate = .alloc_always,
         .ignore_unknown_fields = true,
     });
-    defer cs.deinit(a);
+    defer cs.deinit(std.testing.allocator);
+
+    try validateTrustChain(cs.trust_chain.?, 1709232639, std.testing.allocator);
 }
