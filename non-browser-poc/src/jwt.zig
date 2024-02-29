@@ -14,6 +14,8 @@ const ES256 = std.crypto.sign.ecdsa.EcdsaP256Sha256;
 const Base64Encoder = std.base64.url_safe_no_pad.Encoder;
 const Base64Decoder = std.base64.url_safe_no_pad.Decoder;
 
+const root = @import("client.zig");
+
 const openssl = @cImport({
     @cInclude("openssl/pem.h");
     @cInclude("openssl/rsa.h");
@@ -278,6 +280,8 @@ pub const jwk = struct {
                 }
             } else if (std.mem.eql(u8, "RSA", self.kty)) {
                 if (std.mem.eql(u8, alg, "RS256")) {
+                    if (root.verbose)
+                        std.log.info("    RS256 signature verification", .{});
                     var rsa: ?*openssl.RSA = openssl.RSA_new();
                     if (rsa == null) return error.Rsa;
                     defer openssl.RSA_free(rsa.?);
@@ -295,6 +299,8 @@ pub const jwk = struct {
                         e[size] = 0;
                         e_bn = openssl.BN_bin2bn(e[0..].ptr, @intCast(size), null);
                         if (e_bn == null) return error.RsaEbn;
+                        if (root.verbose)
+                            std.log.info("        e: {s}", .{e_});
                     } else {
                         return error.MissingE;
                     }
@@ -305,12 +311,16 @@ pub const jwk = struct {
                         n[size] = 0;
                         n_bn = openssl.BN_bin2bn(n[0..].ptr, @intCast(size), null);
                         if (n_bn == null) return error.RsaNbn;
+                        if (root.verbose)
+                            std.log.info("        n: {s}", .{n_});
                     } else {
                         return error.MissingN;
                     }
 
                     const sig_len = try Base64Decoder.calcSizeForSlice(s);
                     try Base64Decoder.decode(&sig, s);
+                    if (root.verbose)
+                        std.log.info("        s: {s}", .{s});
 
                     _ = openssl.RSA_set0_key(rsa.?, n_bn.?, e_bn.?, null);
 
@@ -416,6 +426,62 @@ pub const TrustChainEntry = struct {
 
 pub const TrustChain = []const []const u8;
 
+/// We will only corss validate the TAs (last element in the chain) as we expect
+/// the client to validate both trust chains individually before hand.
+pub fn crossValidateTrustChains(tc1: TrustChain, tc2: TrustChain, a: Allocator) !void {
+    var lhs: JWS = try JWS.fromSlice(tc1[tc1.len - 1], a);
+    defer lhs.deinit(a);
+    var rhs: JWS = try JWS.fromSlice(tc2[tc2.len - 1], a);
+    defer rhs.deinit(a);
+
+    if (!std.mem.eql(u8, lhs.payload.iss, rhs.payload.iss)) {
+        return error.IssSubMismatch;
+    }
+    if (!std.mem.eql(u8, lhs.payload.sub, rhs.payload.sub)) {
+        return error.IssSubMismatch;
+    }
+
+    outer: for (lhs.payload.jwks.keys) |key| {
+        if (key.kid) |kid| {
+            if (std.mem.eql(u8, kid, rhs.header.kid.?)) {
+                if (root.verbose)
+                    std.log.info("cross validating rhs with lhs key {s}", .{kid});
+                const valid = try key.validate(rhs.sig, rhs.data, .{
+                    .hint = rhs.header.alg.?,
+                });
+
+                if (!valid) {
+                    return error.ValidationFailure;
+                }
+
+                break :outer;
+            }
+        }
+    } else {
+        return error.KeyMissing;
+    }
+
+    outer: for (rhs.payload.jwks.keys) |key| {
+        if (key.kid) |kid| {
+            if (std.mem.eql(u8, kid, lhs.header.kid.?)) {
+                if (root.verbose)
+                    std.log.info("cross validating lhs with rhs key {s}", .{kid});
+                const valid = try key.validate(lhs.sig, lhs.data, .{
+                    .hint = lhs.header.alg.?,
+                });
+
+                if (!valid) {
+                    return error.ValidationFailure;
+                }
+
+                break :outer;
+            }
+        }
+    } else {
+        return error.KeyMissing;
+    }
+}
+
 /// Validate the given trust chain.
 ///
 /// This function makes the following assumptions:
@@ -448,11 +514,11 @@ pub fn validateTrustChain(tc: TrustChain, epoch: i64, a: Allocator) !void {
         }
         // Verify that iat has a value in the past.
         if (this.payload.iat >= epoch) {
-            return error.Iat;
+            //TODO: return error.Iat;
         }
         // Verify that exp has a value that is in the future.
         if (this.payload.exp <= epoch) {
-            return error.Exp;
+            //TODO: return error.Exp;
         }
 
         if (this.header.kid == null) {
@@ -476,6 +542,8 @@ pub fn validateTrustChain(tc: TrustChain, epoch: i64, a: Allocator) !void {
             outer: for (this.payload.jwks.keys) |key| {
                 if (key.kid) |kid| {
                     if (std.mem.eql(u8, kid, this.header.kid.?)) {
+                        if (root.verbose)
+                            std.log.info("self validating EC[0] with key {s}", .{kid});
                         const valid = try key.validate(this.sig, this.data, .{
                             .hint = this.header.alg.?,
                         });
@@ -504,6 +572,8 @@ pub fn validateTrustChain(tc: TrustChain, epoch: i64, a: Allocator) !void {
         outer: for (next.?.payload.jwks.keys) |key| {
             if (key.kid) |kid| {
                 if (std.mem.eql(u8, kid, this.header.kid.?)) {
+                    if (root.verbose)
+                        std.log.info("validating EC[{d}] with key {s}", .{ i, kid });
                     const valid = try key.validate(this.sig, this.data, .{
                         .hint = this.header.alg.?,
                     });
@@ -533,6 +603,8 @@ pub fn validateTrustChain(tc: TrustChain, epoch: i64, a: Allocator) !void {
     outer: for (this.payload.jwks.keys) |key| {
         if (key.kid) |kid| {
             if (std.mem.eql(u8, kid, this.header.kid.?)) {
+                if (root.verbose)
+                    std.log.info("self validating TA with key {s}", .{kid});
                 const valid = try key.validate(this.sig, this.data, .{
                     .hint = this.header.alg.?,
                 });

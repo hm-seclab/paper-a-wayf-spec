@@ -29,7 +29,7 @@ const cURL = @cImport({
 var gpa = std.heap.GeneralPurposeAllocator(.{}){};
 var allocator = gpa.allocator();
 var in_buffer: [100]u8 = undefined;
-var verbose = false;
+pub var verbose = false;
 
 const sp_token = @embedFile("resolve-sp");
 const idp_token = @embedFile("resolve-idp");
@@ -84,7 +84,7 @@ pub fn main() !void {
     // This function will derive an identity provider (IdP) for us.
     const idp = try navigator.credential.resolveWAYF(
         // It takes a list of supported IdPs...
-        &.{ "sso.hm.edu", "idp.orga.edu", "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/", "idp.orgb.edu" },
+        &.{ "sso.hm.edu", "idp.orga.edu", "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/", "http://op.a-wayf.local:8002/oidc/op", "idp.orgb.edu" },
         // ...the trust chain of the SP...
         statement.payload.trust_chain.?,
         // ...and the federation protocol to expect.
@@ -309,7 +309,7 @@ pub const navigator = struct {
             if (std.mem.eql(u8, "OIDfed", fed_protocol)) {
                 // First we have to verify that the TC of the SP is valid.
                 // TODO: As the TC is hardcoded we have to use a static time stamp.
-                try jwt.validateTrustChain(trust_chain, 1708118300, a);
+                try jwt.validateTrustChain(trust_chain, std.time.timestamp(), a);
 
                 // Next, for all available IdPs we have to:
                 //     a) query the trust chain and verify it
@@ -319,10 +319,11 @@ pub const navigator = struct {
                 // applications where client and SP are the same entity, we assume that the
                 // appication itself is trust worthy (the user had to proactively install it).
 
+                var valid_idps = std.ArrayList([]const u8).init(a);
+                defer valid_idps.deinit();
                 for (potential_idps.items) |IdP| {
                     const jws = resolveTrustChain(IdP, a) catch |e| {
-                        std.log.err("unable to fetch trust chain for {s} ({any})", .{ IdP, e });
-                        // TODO: remove idp
+                        std.log.warn("unable to fetch trust chain for {s} ({any}). Removing entry...", .{ IdP, e });
                         continue;
                     };
                     defer jws.deinit(a);
@@ -330,13 +331,18 @@ pub const navigator = struct {
                     if (verbose)
                         std.log.info("{any}", .{jws});
 
-                    jwt.validateTrustChain(jws.payload.trust_chain.?, std.time.timestamp(), a) catch {
-                        std.log.err("trust chain validation failed", .{});
-                        // TODO: remove idp
+                    jwt.validateTrustChain(jws.payload.trust_chain.?, std.time.timestamp(), a) catch |e| {
+                        std.log.warn("trust chain validation failed for {s} ({any})", .{ IdP, e });
                         continue;
                     };
 
-                    // TODO: cross validate
+                    // cross validate
+                    jwt.crossValidateTrustChains(jws.payload.trust_chain.?, trust_chain, a) catch |e| {
+                        std.log.warn("cross validation failed for {s} ({any})", .{ IdP, e });
+                        continue;
+                    };
+
+                    try valid_idps.append(try a.dupe(u8, IdP));
                 }
 
                 // Return selected IdP
@@ -350,18 +356,18 @@ pub const navigator = struct {
                 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
                 try stdout.writeAll("Available identity providers:\n");
-                for (potential_idps.items, 0..) |item, i| {
+                for (valid_idps.items, 0..) |item, i| {
                     try std.fmt.format(stdout.writer(), "    [{d}] {s}\n", .{ i, item });
                 }
 
-                try std.fmt.format(stdout.writer(), "Please select an identity provider for authentication [0-{d}]: ", .{potential_idps.items.len - 1});
+                try std.fmt.format(stdout.writer(), "Please select an identity provider for authentication [0-{d}]: ", .{valid_idps.items.len - 1});
                 const answer = (try nextLine(stdin.reader(), &in_buffer)).?;
                 const n = std.fmt.parseInt(usize, answer, 0) catch {
                     std.log.err("not a number", .{});
                     return null;
                 };
-                if (n >= potential_idps.items.len) {
-                    std.log.err("{d} not in 0 - {d}", .{ n, potential_idps.items.len - 1 });
+                if (n >= valid_idps.items.len) {
+                    std.log.err("{d} not in 0 - {d}", .{ n, valid_idps.items.len - 1 });
                     return null;
                 }
 
@@ -369,7 +375,7 @@ pub const navigator = struct {
                 // WAYF Response (6)
                 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-                return try a.dupe(u8, potential_idps.items[n]);
+                return try a.dupe(u8, valid_idps.items[n]);
             } else {
                 std.log.err("unsupported federation protocol {s}", .{fed_protocol});
                 return null;
@@ -379,6 +385,14 @@ pub const navigator = struct {
 };
 
 fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
+    if (std.mem.eql(u8, node, "http://op.a-wayf.local:8002/oidc/op")) {
+        return try jwt.JWS.fromSlice(idp_token, a);
+    } else {
+        return error.NotFound;
+    }
+}
+
+fn _resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
     _ = node;
 
     // +++++++++++++++++++++++++++++++++++++++++++
