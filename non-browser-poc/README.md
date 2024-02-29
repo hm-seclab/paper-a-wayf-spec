@@ -9,6 +9,8 @@ The following dependencies are required to build the project:
 * [Zig 0.11.0](https://ziglang.org/download/)
 * Curl library and headers
     * Ubuntu: `sudo apt install libcurl4-gnutls-dev`
+* OpenSSL (RS256 support)
+    * Ubuntu: `sudo apt install libssl-dev`
 
 After you've installed all required dependencies run `zig build` to
 build the authenticator and client executables. The executables will
@@ -62,25 +64,4 @@ exit 0
 
 ## Client
 
-You can run the client by executing `./zig-out/bin/client`. The PoC client will use the first authenticator available via USB. This
-can either be the virtual authenticator or a modified Solo Hacker.
-
-## Example Output
-
-Authenticator:
-```
-./zig-out/bin/authenticator
-info: Auth.init: no settings found
-info: Auth.init: generating new settings...
-info: writing (53657474696e6773, Root): a66a70696e5265747269657308697576526574726965730870666f7263655f70696e5f6368616e6765f46e6d696e5f70696e5f6c656e6774680469616c776179735f7576f46b75736167655f636f756e7400
-info: Auth.init: new settings persisted
-info: request(66): a101010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
-info: response(66): 00a30146686d2e65647502583168747470733a2f2f7368692d696470322e727a2e66682d6d75656e6368656e2e64652f6964702f73686962626f6c6574680301
-```
-
-Client:
-```
-./zig-out/bin/client
-info: [0]: https://shi-idp2.rz.fh-muenchen.de/idp/shibboleth, hm.edu, 1
-```
-
+You can run the client by executing `./zig-out/bin/client`. The PoC client will use the first authenticator available via USB. This can either be the platform authenticator or a modified Solo Hacker. The client supports a verbos flag `-v` that prints additionaly output.
