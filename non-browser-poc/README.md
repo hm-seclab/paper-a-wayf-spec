@@ -34,7 +34,7 @@ The given project is structured as follows:
 
 ## Authenticator
 
-The given authenticator implements the CTAP2 spec + the proposed fedEntity extension. It keeps its state in memory, i.e. you will loose all created credentials when terminating
+The given authenticator implements the CTAP2 spec + the proposed federationId extension. It keeps its state in memory, i.e. you will lose all created credentials when terminating
 the application.
 
 * NOTE: The authenticator exposes itself via _uhid_ but this is a feature only supported by Linux.
@@ -64,4 +64,4 @@ exit 0
 
 ## Client
 
-You can run the client by executing `./zig-out/bin/client`. The PoC client will use the first authenticator available via USB. This can either be the platform authenticator or a modified Solo Hacker. The client supports a verbos flag `-v` that prints additionaly output.
+You can run the client by executing `./zig-out/bin/client`. The PoC client will use the first authenticator available via USB. This can either be the platform authenticator or a modified Solo Hacker. The client supports a verbose flag `-v` that prints additional output.
