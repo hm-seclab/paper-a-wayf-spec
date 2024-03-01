@@ -4,7 +4,7 @@
 
 - We used the https://github.com/italia/spid-cie-oidc-django testbed implementation that was forked [here](https://github.com/hm-seclab/awayf-spid-cie-oidc-django)
     - Follow the [instructions for the docker compose setup](https://github.com/hm-seclab/awayf-spid-cie-oidc-django?tab=readme-ov-file#docker-compose)
-    - No customizations are necessary
+    - No further customizations are necessary
 - The example federation consists of the following components:
     - a Trust Anchor (TA): http://ta.a-wayf.local:8000
     - a Relying Party (RP): http://rp.a-wayf.local:8001
