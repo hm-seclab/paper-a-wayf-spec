@@ -309,7 +309,10 @@ pub const navigator = struct {
             if (std.mem.eql(u8, "OIDfed", fed_protocol)) {
                 // First we have to verify that the TC of the SP is valid.
                 // TODO: As the TC is hardcoded we have to use a static time stamp.
-                try jwt.validateTrustChain(trust_chain, std.time.timestamp(), a);
+                jwt.validateTrustChain(trust_chain, std.time.timestamp(), a) catch |e| {
+                    std.log.err("SP trust chain invalid ({any})", .{e});
+                    return null;
+                };
 
                 // Next, for all available IdPs we have to:
                 //     a) query the trust chain and verify it
@@ -322,7 +325,7 @@ pub const navigator = struct {
                 var valid_idps = std.ArrayList([]const u8).init(a);
                 defer valid_idps.deinit();
                 for (potential_idps.items) |IdP| {
-                    const jws = resolveTrustChain(IdP, a) catch |e| {
+                    const jws = resolveTrustChain2(IdP, a) catch |e| {
                         std.log.warn("unable to fetch trust chain for {s} ({any}). Removing entry...", .{ IdP, e });
                         continue;
                     };
@@ -346,7 +349,7 @@ pub const navigator = struct {
                 }
 
                 // Return selected IdP
-                if (potential_idps.items.len == 0) return null;
+                if (valid_idps.items.len == 0) return null;
 
                 // ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
                 // User Dialog (5)
@@ -392,56 +395,59 @@ fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
     }
 }
 
-fn _resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
-    _ = node;
+fn resolveTrustChain2(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
+    if (std.mem.eql(u8, node, "http://op.a-wayf.local:8002/oidc/op")) {
+        // +++++++++++++++++++++++++++++++++++++++++++
+        // Fetch entity statement including trust chain
+        // +++++++++++++++++++++++++++++++++++++++++++
 
-    // +++++++++++++++++++++++++++++++++++++++++++
-    // Fetch entity statement including trust chain
-    // +++++++++++++++++++++++++++++++++++++++++++
+        // curl easy handle init, or fail
+        const handle = cURL.curl_easy_init() orelse return error.CURLHandleInitFailed;
+        defer cURL.curl_easy_cleanup(handle);
 
-    // curl easy handle init, or fail
-    const handle = cURL.curl_easy_init() orelse return error.CURLHandleInitFailed;
-    defer cURL.curl_easy_cleanup(handle);
+        var response_buffer = std.ArrayList(u8).init(a);
+        errdefer response_buffer.deinit();
 
-    var response_buffer = std.ArrayList(u8).init(a);
-    errdefer response_buffer.deinit();
+        //const url = try std.fmt.allocPrint(a, "{s}resolve?sub={s}&anchor={s}", .{ node, node, "https://trust-anchor.testbed.oidcfed.incubator.geant.org/" });
+        //defer a.free(url);
+        // TODO: hard coded values aint good...
+        const url = "http://op.a-wayf.local:8002/oidc/op/resolve?sub=http://op.a-wayf.local:8002/oidc/op&anchor=http://ta.a-wayf.local:8000";
+        //const url = "http://0.0.0.0:8002/oidc/op/resolve?sub=http://0.0.0.0:8002/oidc/op&anchor=http://0.0.0.0:8000";
+        if (verbose)
+            std.log.info("requesting statement via: {s}", .{url});
 
-    //const url = try std.fmt.allocPrint(a, "{s}resolve?sub={s}&anchor={s}", .{ node, node, "https://trust-anchor.testbed.oidcfed.incubator.geant.org/" });
-    //defer a.free(url);
-    // TODO: hard coded values aint good...
-    const url = "https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/resolve?sub=https://trust-anchor.testbed.oidcfed.incubator.geant.org/oidc/op/&anchor=https://trust-anchor.testbed.oidcfed.incubator.geant.org/";
-    if (verbose)
-        std.log.info("requesting statement via: {s}", .{url});
+        // setup curl options
+        if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url.ptr) != cURL.CURLE_OK)
+            return error.CouldNotSetURL;
 
-    // setup curl options
-    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url.ptr) != cURL.CURLE_OK)
-        return error.CouldNotSetURL;
+        // set write function callbacks
+        if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEFUNCTION, writeToArrayListCallback) != cURL.CURLE_OK)
+            return error.CouldNotSetWriteCallback;
+        if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEDATA, &response_buffer) != cURL.CURLE_OK)
+            return error.CouldNotSetWriteCallback;
 
-    // set write function callbacks
-    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEFUNCTION, writeToArrayListCallback) != cURL.CURLE_OK)
-        return error.CouldNotSetWriteCallback;
-    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEDATA, &response_buffer) != cURL.CURLE_OK)
-        return error.CouldNotSetWriteCallback;
+        // perform
+        if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
+            return error.FailedToPerformRequest;
 
-    // perform
-    if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
-        return error.FailedToPerformRequest;
+        if (verbose)
+            std.log.info("statement: {s}", .{response_buffer.items});
 
-    if (verbose)
-        std.log.info("statement: {s}", .{response_buffer.items});
+        // +++++++++++++++++++++++++++++++++++++++++++
+        // Now access trust chain and return it
+        // +++++++++++++++++++++++++++++++++++++++++++
 
-    // +++++++++++++++++++++++++++++++++++++++++++
-    // Now access trust chain and return it
-    // +++++++++++++++++++++++++++++++++++++++++++
+        const statement = try jwt.JWS.fromSlice(response_buffer.items, a);
+        errdefer statement.deinit(a);
 
-    const statement = try jwt.JWS.fromSlice(response_buffer.items, a);
-    defer statement.deinit(a);
+        if (statement.payload.trust_chain == null) {
+            return error.MissingTrustChain;
+        }
 
-    if (statement.payload.trust_chain == null) {
-        return error.MissingTrustChain;
+        return statement;
+    } else {
+        return error.NotFound;
     }
-
-    return error.Nope;
 }
 
 fn writeToArrayListCallback(data: *anyopaque, size: c_uint, nmemb: c_uint, user_data: *anyopaque) callconv(.C) c_uint {

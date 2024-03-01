@@ -62,6 +62,29 @@ echo "Installed successfully. Please reboot..."
 exit 0
 ```
 
+## Server
+
+First install docker compose:
+
+```
+sudo apt install docker-compose-plugin
+```
+
+Then clone the [django server](https://github.com/hm-seclab/awayf-spid-cie-oidc-django?tab=readme-ov-file#docker-compose) and build the docker container:
+
+```
+git clone https://github.com/hm-seclab/awayf-spid-cie-oidc-django.git
+cd awayf-spid-cie-oidc-django
+bash docker-prepare.sh
+sudo docker compose up
+```
+
+Finally, add the following line to `/etc/hosts`:
+
+```
+0.0.0.0 ta.a-wayf.local rp.a-wayf.local op.a-wayf.local
+```
+
 ## Client
 
 You can run the client by executing `./zig-out/bin/client`. The PoC client will use the first authenticator available via USB. This can either be the platform authenticator or a modified Solo Hacker. The client supports a verbose flag `-v` that prints additional output.
