@@ -12,36 +12,6 @@ Complain About: accidental-2119 yes, missing-example-ids yes
 Markup Shorthands: markdown yes, css no
 </pre>
 
-<pre class="link-defaults">
-
-spec: dom; type: interface; for:/; text: Document
-
-</pre>
-
-<pre class="anchors">
-
-spec: FIDO-CTAP: urlPrefix: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html
-    type: dfn
-        text: discoverable credentials; url: sctn-discoverable
-
-</pre>
-
-<pre class="link-defaults">
-spec:credential-management; type:dfn; text:credentials
-spec:html; type:dfn; for:environment settings object; text:global object
-spec:html; type:dfn; for:/; text:same site
-spec:infra; type:dfn; for:/; text:set
-spec:infra; type:dfn; text:list
-spec:infra; type:dfn; for:struct; text:item
-spec:infra; type:dfn; for:map; text:exists
-spec:url; type:dfn; text:domain
-spec:url; type:dfn; for:url; text:host
-spec:url; type:dfn; text:valid domain;
-spec:webidl; type:dfn; text:DOMString
-spec:webidl; type:dfn; text:USVString
-spec:webidl; type:interface; text:Promise
-</pre>
-
 <pre class=biblio>
 {
   "FIDO-CTAP": {
@@ -59,6 +29,18 @@ spec:webidl; type:interface; text:Promise
         "Thomas Schreck"
     ],
     "title": "A-WAYF: Automated Where Are You From in Multilateral Federations"
+  },
+  "openid": {
+    "authors": [
+        "R. Hedberg, Ed.",
+        "M.B. Jones",
+        "A.Å. Solberg",
+        "J. Bradley",
+        "G. De Marco",
+        "V. Dzhuvinov"
+    ],
+    "title": "OpenID Federation 1.0 - draft 33",
+    "href": "https://openid.net/specs/openid-federation-1_0.html"
   }
 }
 </pre>
@@ -66,15 +48,15 @@ spec:webidl; type:interface; text:Promise
 Introduction {#intro}
 =====================
 
-Introduction here.
+This document describes how ...
 
 A-WAYF {#awayf}
 =====================
 
-CTAP2 Extensions {#ctap}
+CTAP2 Extension {#ctap-extension}
 =====================
 
-The following section introduces extensions for [[FIDO-CTAP]] that enable an authenticator to support the Automated Wherer Are You From [[AWAYF]] protocol.
+The following section introduces extensions for [[!FIDO-CTAP]] that enable an authenticator to support the Automated Wherer Are You From [[!AWAYF]] protocol.
 
 ## Enterprise Federation (enterpriseFed) ## {#enterpriseFed}
 
@@ -88,7 +70,7 @@ The federation entity is typically a endpoint refrencing an identity provider, e
 
 Authenticators supporting [=discoverable credentials=] SHOULD process this extension and persist the [=idpId value=] with the credential.
 
-Relying parties belonging to a federation SHOULD use this extension to establish a relationship between a credentail and the federation the relying party belongs to.
+Relying parties belonging to a federation SHOULD use this extension to establish a relationship between a credentail and the federation the relying party belongs to. See [[#supportedFedProto]] for a list of protocols.
 
 : Client extension input
 :: `create()`: A single USVString specifying the end-point of an identity provider.
@@ -110,7 +92,9 @@ Relying parties belonging to a federation SHOULD use this extension to establish
 
 The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:
 
-* "idpId": URL
+* `"idpId": <idpId Value>`
+
+Note: The extension MUST be ignored for non-discoverable credentials.
 
 <pre class="example" highlight="js">
 {
@@ -121,7 +105,147 @@ The platform sends the authenticatorMakeCredential request with the following CB
 </pre>
 
 : Authenticator extension processing
-:: <dfn dfn>idpId value</dfn> is presisted with the credential.
+:: <dfn dfn>idpId value</dfn> is presisted with the credential. The authenticator checks whether the authenticatorMakeCredential's options.rk option is present and true. If so, the authenticator stores the given information with the created credential. If not, the authenticator MUST ignore the extension.
 
+: Authenticator extension output
+::  - The authenticator responds with the following CBOR map entry in the "extensions" field of the authenticator data object:
+        - `"idpId": <idpId Value>`
 
+<pre class="example" highlight="js">
+    {"idpId": "https://sso.hm.edu"}
+</pre>
+
+### Supported Federation Protocols ### {#supportedFedProto}
+
+The following federation protocols are considered for A-WAYF:
+
+- OpenID Federation ([[!openid]])
+
+## pinUvAuthToken permission fedMgmt ## {#fedMgmt}
+
+<figure id="version" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Permission name</th>
+            <th>Role</th>
+            <th>Value</th>
+            <th>rpId</th>
+            <th>Definition</th>
+        </tr>
+        <tr>
+            <td><dfn>fm</dfn></td>
+            <td>Federation Management</td>
+            <td>`0x40`</td>
+            <td>Ignored</td>
+            <td>
+                This allows the pinUvAuthToken to be used with the [[#authFedMgmt]] command. The rpId parameter is ignored, if it is present.
+            </td>
+        </tr>
+    </table>
+</figure>
+
+## authenticatorFederationManagement (0x42) ## {#authFedMgmt}
+
+This command is used by the platform to manage federated credentials on the authenticator. It takes the following input arguments:
+
+<figure id="fedMgmtCommandParams" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Parameter name</th>
+            <th>Data type</th>
+            <th>Required?</th>
+            <th>Definition</th>
+        </tr>
+        <tr>
+            <td>subCommand (0x01)</td>
+            <td>Unsigend Integer</td>
+            <td>Required</td>
+            <td>The [=subCommand=] currently being requested.</td>
+        </tr>
+        <tr>
+            <td>pinUvAuthProtocol (0x02)</td>
+            <td>Unsigend Integer</td>
+            <td>Optional</td>
+            <td>PIN/UV protocol version selected by the platform.</td>
+        </tr>
+        <tr>
+            <td>pinUvAuthParam (0x03)</td>
+            <td>Byte String</td>
+            <td>Optional</td>
+            <td>Result of calling authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42).</td>
+        </tr>
+    </table>
+</figure>
+
+Note: A federated credential is a credential that is linked to a identity provider via the [=idpId value=].
+
+The list of <dfn>subCommand</dfn>s for federation management is:
+
+<figure id="subCommands" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>subCommand Name</th>
+            <th>subCommand Number</th>
+        </tr>
+        <tr>
+            <td>[[#enumerateIdPBegin]]</td>
+            <td>0x01</td>
+        </tr>
+        <tr>
+            <td>[[#enumerateIdPsGetNextIdP]]</td>
+            <td>0x02</td>
+        </tr>
+    </table>
+</figure>
+
+### enumerateIdPBegin (0x01) ### {#enumerateIdPBegin}
+
+Following operations are preformed to enumerate the identity provider IDs present on the authenticator:
+
+- The platform gets a pinUvAuthToken from the authenticator with the [=fm=] (0x40) permission.
+- The Platform sends a authenticatorEnumerateIdP command with the following parameters:
+    - pinUvAuthProtocol (0x02): as selected when getting the shared secret.
+    - pinUvAuthParam (0x03): authenticate(pinUvAuthToken, enumerateIdPBegin (0x01)).
+- Authenticator on receiving such request performs following procedures:
+    1. If one of the expected arguments is missing from the input map, return CTAP2_ERR_MISSING_PARAMETER.
+    2. If pinUvAuthProtocol is not supported, return CTAP1_ERR_INVALID_PARAMETER.
+    3. Authenticator calls verify(pinUvAuthToken, enumerateIdPBegin (0x01), pinUvAuthParam).
+    4. If pinUvAuthParam verification fails, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.
+    5. The authenticator verifies that the pinUvAuthToken has the fm permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.
+    6. If no discoverable credentials exist on this authenticator, return [=CTAP2_ERR_NO_IDPS=].
+    7. Locate all credentials that are eligible for retrieval under the specified criteria:
+        1. Locate all discoverable credentials that are created by this authenticator that have the idpId property.
+        2. Create an applicable credentials list populated with the located credentials.
+        3. If the applicable credentials list is empty, return [=CTAP2_ERR_NO_IDPS=].
+        4. Let numberOfIdPs be the number of applicable credentials found.
+    8. The authenticator returns an authenticatorFederationManagement response with following parameters:
+        - idpId (0x01): Text String, the content of idpId.
+        - totalIdps (0x02): Total number of IdPs present on the authenticator.
+
+### enumerateIdPsGetNextIdP (0x02) ### {#enumerateIdPsGetNextIdP}
+
+- Platform on receiving more than 1 totalIdps, performs the following procedure for (totalIdps - 1) number of times:
+    - Platform sends authenticatorFederationManagement command with following parameters:
+        - subCommand (0x01): enumerateIdPsGetNextIdP (0x02)
+    - Authenticator on receiving such enumerateIdPsGetNextIdP subCommand returns authenticatorFederationManagement response with following parameters:
+        - idpId (0x01): Text String, the content of idpId.
+
+## Status codes
+
+<figure id="statusCodes" class="table">
+    <table class="complex data longlastcol">
+        <tr>
+            <th>Code</th>
+            <th>Name</th>
+            <th>Description</th>
+        </tr>
+        <tr>
+            <td>0xE1</td>
+            <td><dfn>CTAP2_ERR_NO_IDPS</dfn></td>
+            <td>There are no available IdP.</td>
+        </tr>
+    </table>
+</figure>
+
+    
 

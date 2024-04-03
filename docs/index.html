@@ -1490,7 +1490,7 @@ Possible extra rowspan handling
 </style>
   <meta content="Bikeshed version d765c696b, updated Fri Mar 8 15:58:52 2024 -0800" name="generator">
   <link href="https://github.com/hm-seclab/paper-a-wayf-spec/spec/index.html" rel="canonical">
-  <meta content="f327a9380ad35e60127498e8cfc937c7d5ad95a6" name="revision">
+  <meta content="d8c6c0f1bdee624842e9fc6fb74752b821e96768" name="revision">
   <meta content="dark light" name="color-scheme">
 <style>/* Boilerplate: style-autolinks */
 .css.css, .property.property, .descriptor.descriptor {
@@ -2172,7 +2172,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
   <div class="head">
    <p data-fill-with="logo"></p>
    <h1 class="p-name no-ref" id="title">A-WAYF: Automated Where Are You From</h1>
-   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-03-30">30 March 2024</time></span></h2>
+   <h2 class="no-num no-toc no-ref heading settled" id="profile-and-date"><span class="content">Living Document, <time class="dt-updated" datetime="2024-04-03">3 April 2024</time></span></h2>
    <div data-fill-with="spec-metadata">
     <dl>
      <dt>This version:
@@ -2186,7 +2186,7 @@ c-[il] { color: #000000 } /* Literal.Number.Integer.Long */
    <div data-fill-with="warning"></div>
    <p class="copyright" data-fill-with="copyright"><a href="http://creativecommons.org/publicdomain/zero/1.0/" rel="license"><img alt="CC0" height="15" src="https://licensebuttons.net/p/zero/1.0/80x15.png" width="80"></a> To the extent possible under law, the editors have waived all copyright
 and related or neighboring rights to this work.
-In addition, as of 30 March 2024,
+In addition, as of 3 April 2024,
 the editors have made this specification available under the <a href="http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0" rel="license">Open Web Foundation Agreement Version 1.0</a>,
 which is available at http://www.openwebfoundation.org/legal/the-owf-1-0-agreements/owfa-1-0.
 Parts of this work may be from another specification document.  If so, those parts are instead covered by the license of that specification document. </p>
@@ -2203,34 +2203,41 @@ Parts of this work may be from another specification document.  If so, those par
     <li><a href="#intro"><span class="secno">1</span> <span class="content">Introduction</span></a>
     <li><a href="#awayf"><span class="secno">2</span> <span class="content">A-WAYF</span></a>
     <li>
-     <a href="#ctap"><span class="secno">3</span> <span class="content">CTAP2 Extensions</span></a>
+     <a href="#ctap-extension"><span class="secno">3</span> <span class="content">CTAP2 Extension</span></a>
      <ol class="toc">
       <li>
        <a href="#enterpriseFed"><span class="secno">3.1</span> <span class="content">Enterprise Federation (enterpriseFed)</span></a>
        <ol class="toc">
         <li><a href="#eFedFD"><span class="secno">3.1.1</span> <span class="content">Feature detection</span></a>
+        <li><a href="#supportedFedProto"><span class="secno">3.1.2</span> <span class="content">Supported Federation Protocols</span></a>
        </ol>
+      <li><a href="#fedMgmt"><span class="secno">3.2</span> <span class="content">pinUvAuthToken permission fedMgmt</span></a>
+      <li>
+       <a href="#authFedMgmt"><span class="secno">3.3</span> <span class="content">authenticatorFederationManagement (0x42)</span></a>
+       <ol class="toc">
+        <li><a href="#enumerateIdPBegin"><span class="secno">3.3.1</span> <span class="content">enumerateIdPBegin (0x01)</span></a>
+        <li><a href="#enumerateIdPsGetNextIdP"><span class="secno">3.3.2</span> <span class="content">enumerateIdPsGetNextIdP (0x02)</span></a>
+       </ol>
+      <li><a href="#status-codes"><span class="secno">3.4</span> <span class="content">Status codes</span></a>
      </ol>
     <li><a href="#conformance"><span class="secno"></span> <span class="content"> Conformance</span></a>
     <li>
      <a href="#index"><span class="secno"></span> <span class="content">Index</span></a>
      <ol class="toc">
       <li><a href="#index-defined-here"><span class="secno"></span> <span class="content">Terms defined by this specification</span></a>
-      <li><a href="#index-defined-elsewhere"><span class="secno"></span> <span class="content">Terms defined by reference</span></a>
      </ol>
     <li>
      <a href="#references"><span class="secno"></span> <span class="content">References</span></a>
      <ol class="toc">
       <li><a href="#normative"><span class="secno"></span> <span class="content">Normative References</span></a>
-      <li><a href="#informative"><span class="secno"></span> <span class="content">Informative References</span></a>
      </ol>
    </ol>
   </nav>
   <main>
    <h2 class="heading settled" data-level="1" id="intro"><span class="secno">1. </span><span class="content">Introduction</span><a class="self-link" href="#intro"></a></h2>
-   <p>Introduction here.</p>
+   <p>This document describes how ...</p>
    <h2 class="heading settled" data-level="2" id="awayf"><span class="secno">2. </span><span class="content">A-WAYF</span><a class="self-link" href="#awayf"></a></h2>
-   <h2 class="heading settled" data-level="3" id="ctap"><span class="secno">3. </span><span class="content">CTAP2 Extensions</span><a class="self-link" href="#ctap"></a></h2>
+   <h2 class="heading settled" data-level="3" id="ctap-extension"><span class="secno">3. </span><span class="content">CTAP2 Extension</span><a class="self-link" href="#ctap-extension"></a></h2>
    <p>The following section introduces extensions for <a data-link-type="biblio" href="#biblio-fido-ctap" title="Client to Authenticator Protocol (CTAP)">[FIDO-CTAP]</a> that enable an authenticator to support the Automated Wherer Are You From <a data-link-type="biblio" href="#biblio-awayf" title="A-WAYF: Automated Where Are You From in Multilateral Federations">[AWAYF]</a> protocol.</p>
    <h3 class="heading settled" data-level="3.1" id="enterpriseFed"><span class="secno">3.1. </span><span class="content">Enterprise Federation (enterpriseFed)</span><a class="self-link" href="#enterpriseFed"></a></h3>
    <h4 class="heading settled" data-level="3.1.1" id="eFedFD"><span class="secno">3.1.1. </span><span class="content">Feature detection</span><a class="self-link" href="#eFedFD"></a></h4>
@@ -2241,8 +2248,8 @@ Parts of this work may be from another specification document.  If so, those par
    </dl>
    <p>This registration extension allows relying parties to specify an federation entity when creating a credential.
 The federation entity is typically a endpoint refrencing an identity provider, e.g., <code>https://sso.hm.edu</code>.</p>
-   <p>Authenticators supporting <a data-link-type="dfn" href="sctn-discoverable" id="ref-for-something">discoverable credentials</a> SHOULD process this extension and persist the <a data-link-type="dfn" href="#idpid-value" id="ref-for-idpid-value">idpId value</a> with the credential.</p>
-   <p>Relying parties belonging to a federation SHOULD use this extension to establish a relationship between a credentail and the federation the relying party belongs to.</p>
+   <p>Authenticators supporting <a data-link-type="dfn">discoverable credentials</a> SHOULD process this extension and persist the <a data-link-type="dfn" href="#idpid-value" id="ref-for-idpid-value">idpId value</a> with the credential.</p>
+   <p>Relying parties belonging to a federation SHOULD use this extension to establish a relationship between a credentail and the federation the relying party belongs to. See <a href="#supportedFedProto">§ 3.1.2 Supported Federation Protocols</a> for a list of protocols.</p>
    <dl>
     <dt data-md>Client extension input
     <dd data-md>
@@ -2268,8 +2275,9 @@ The federation entity is typically a endpoint refrencing an identity provider, e
    <p>The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:</p>
    <ul>
     <li data-md>
-     <p>"idpId": URL</p>
+     <p><code>"idpId": &lt;idpId Value></code></p>
    </ul>
+   <p class="note" role="note"><span class="marker">Note:</span> The extension MUST be ignored for non-discoverable credentials.</p>
 <pre class="example highlight" id="example-01048d09"><a class="self-link" href="#example-01048d09"></a><c- p>{</c->
     <c- p>...</c->
     <c- mf>6</c-><c- o>:</c-> <c- p>{</c-><c- u>"idpId"</c-><c- o>:</c-> <c- u>"https://sso.hm.edu"</c-><c- p>},</c->
@@ -2279,8 +2287,170 @@ The federation entity is typically a endpoint refrencing an identity provider, e
    <dl>
     <dt data-md>Authenticator extension processing
     <dd data-md>
-     <p><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="idpid-value">idpId value</dfn> is presisted with the credential.</p>
+     <p><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="idpid-value">idpId value</dfn> is presisted with the credential. The authenticator checks whether the authenticatorMakeCredential’s options.rk option is present and true. If so, the authenticator stores the given information with the created credential. If not, the authenticator MUST ignore the extension.</p>
+    <dt data-md>Authenticator extension output
+    <dd data-md>
+     <ul>
+      <li data-md>
+       <p>The authenticator responds with the following CBOR map entry in the "extensions" field of the authenticator data object:</p>
+       <ul>
+        <li data-md>
+         <p><code>"idpId": &lt;idpId Value></code></p>
+       </ul>
+     </ul>
    </dl>
+<pre class="example highlight" id="example-b63ffb7c"><a class="self-link" href="#example-b63ffb7c"></a><c- p>{</c-><c- u>"idpId"</c-><c- o>:</c-> <c- u>"https://sso.hm.edu"</c-><c- p>}</c->
+</pre>
+   <h4 class="heading settled" data-level="3.1.2" id="supportedFedProto"><span class="secno">3.1.2. </span><span class="content">Supported Federation Protocols</span><a class="self-link" href="#supportedFedProto"></a></h4>
+   <p>The following federation protocols are considered for A-WAYF:</p>
+   <ul>
+    <li data-md>
+     <p>OpenID Federation (<a data-link-type="biblio" href="#biblio-openid" title="OpenID Federation 1.0 - draft 33">[openid]</a>)</p>
+   </ul>
+   <h3 class="heading settled" data-level="3.2" id="fedMgmt"><span class="secno">3.2. </span><span class="content">pinUvAuthToken permission fedMgmt</span><a class="self-link" href="#fedMgmt"></a></h3>
+   <figure class="table" id="version">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Permission name
+       <th>Role
+       <th>Value
+       <th>rpId
+       <th>Definition
+      <tr>
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="fm">fm</dfn>
+       <td>Federation Management
+       <td><code>0x40</code>
+       <td>Ignored
+       <td> This allows the pinUvAuthToken to be used with the <a href="#authFedMgmt">§ 3.3 authenticatorFederationManagement (0x42)</a> command. The rpId parameter is ignored, if it is present. 
+    </table>
+   </figure>
+   <h3 class="heading settled" data-level="3.3" id="authFedMgmt"><span class="secno">3.3. </span><span class="content">authenticatorFederationManagement (0x42)</span><a class="self-link" href="#authFedMgmt"></a></h3>
+   <p>This command is used by the platform to manage federated credentials on the authenticator. It takes the following input arguments:</p>
+   <figure class="table" id="fedMgmtCommandParams">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Parameter name
+       <th>Data type
+       <th>Required?
+       <th>Definition
+      <tr>
+       <td>subCommand (0x01)
+       <td>Unsigend Integer
+       <td>Required
+       <td>The <a data-link-type="dfn" href="#subcommand" id="ref-for-subcommand">subCommand</a> currently being requested.
+      <tr>
+       <td>pinUvAuthProtocol (0x02)
+       <td>Unsigend Integer
+       <td>Optional
+       <td>PIN/UV protocol version selected by the platform.
+      <tr>
+       <td>pinUvAuthParam (0x03)
+       <td>Byte String
+       <td>Optional
+       <td>Result of calling authenticate(pinUvAuthToken, authenticatorFederationManagement (0x42).
+    </table>
+   </figure>
+   <p class="note" role="note"><span class="marker">Note:</span> A federated credential is a credential that is linked to a identity provider via the <a data-link-type="dfn" href="#idpid-value" id="ref-for-idpid-value①">idpId value</a>.</p>
+   <p>The list of <dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="subcommand">subCommand</dfn>s for federation management is:</p>
+   <figure class="table" id="subCommands">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>subCommand Name
+       <th>subCommand Number
+      <tr>
+       <td><a href="#enumerateIdPBegin">§ 3.3.1 enumerateIdPBegin (0x01)</a>
+       <td>0x01
+      <tr>
+       <td><a href="#enumerateIdPsGetNextIdP">§ 3.3.2 enumerateIdPsGetNextIdP (0x02)</a>
+       <td>0x02
+    </table>
+   </figure>
+   <h4 class="heading settled" data-level="3.3.1" id="enumerateIdPBegin"><span class="secno">3.3.1. </span><span class="content">enumerateIdPBegin (0x01)</span><a class="self-link" href="#enumerateIdPBegin"></a></h4>
+   <p>Following operations are preformed to enumerate the identity provider IDs present on the authenticator:</p>
+   <ul>
+    <li data-md>
+     <p>The platform gets a pinUvAuthToken from the authenticator with the <a data-link-type="dfn" href="#fm" id="ref-for-fm">fm</a> (0x40) permission.</p>
+    <li data-md>
+     <p>The Platform sends a authenticatorEnumerateIdP command with the following parameters:</p>
+     <ul>
+      <li data-md>
+       <p>pinUvAuthProtocol (0x02): as selected when getting the shared secret.</p>
+      <li data-md>
+       <p>pinUvAuthParam (0x03): authenticate(pinUvAuthToken, enumerateIdPBegin (0x01)).</p>
+     </ul>
+    <li data-md>
+     <p>Authenticator on receiving such request performs following procedures:</p>
+     <ol>
+      <li data-md>
+       <p>If one of the expected arguments is missing from the input map, return CTAP2_ERR_MISSING_PARAMETER.</p>
+      <li data-md>
+       <p>If pinUvAuthProtocol is not supported, return CTAP1_ERR_INVALID_PARAMETER.</p>
+      <li data-md>
+       <p>Authenticator calls verify(pinUvAuthToken, enumerateIdPBegin (0x01), pinUvAuthParam).</p>
+      <li data-md>
+       <p>If pinUvAuthParam verification fails, authenticator returns CTAP2_ERR_PIN_AUTH_INVALID error.</p>
+      <li data-md>
+       <p>The authenticator verifies that the pinUvAuthToken has the fm permission. If not, return CTAP2_ERR_PIN_AUTH_INVALID.</p>
+      <li data-md>
+       <p>If no discoverable credentials exist on this authenticator, return <a data-link-type="dfn" href="#ctap2_err_no_idps" id="ref-for-ctap2_err_no_idps">CTAP2_ERR_NO_IDPS</a>.</p>
+      <li data-md>
+       <p>Locate all credentials that are eligible for retrieval under the specified criteria:</p>
+       <ol>
+        <li data-md>
+         <p>Locate all discoverable credentials that are created by this authenticator that have the idpId property.</p>
+        <li data-md>
+         <p>Create an applicable credentials list populated with the located credentials.</p>
+        <li data-md>
+         <p>If the applicable credentials list is empty, return <a data-link-type="dfn" href="#ctap2_err_no_idps" id="ref-for-ctap2_err_no_idps①">CTAP2_ERR_NO_IDPS</a>.</p>
+        <li data-md>
+         <p>Let numberOfIdPs be the number of applicable credentials found.</p>
+       </ol>
+      <li data-md>
+       <p>The authenticator returns an authenticatorFederationManagement response with following parameters:</p>
+       <ul>
+        <li data-md>
+         <p>idpId (0x01): Text String, the content of idpId.</p>
+        <li data-md>
+         <p>totalIdps (0x02): Total number of IdPs present on the authenticator.</p>
+       </ul>
+     </ol>
+   </ul>
+   <h4 class="heading settled" data-level="3.3.2" id="enumerateIdPsGetNextIdP"><span class="secno">3.3.2. </span><span class="content">enumerateIdPsGetNextIdP (0x02)</span><a class="self-link" href="#enumerateIdPsGetNextIdP"></a></h4>
+   <ul>
+    <li data-md>
+     <p>Platform on receiving more than 1 totalIdps, performs the following procedure for (totalIdps - 1) number of times:</p>
+     <ul>
+      <li data-md>
+       <p>Platform sends authenticatorFederationManagement command with following parameters:</p>
+       <ul>
+        <li data-md>
+         <p>subCommand (0x01): enumerateIdPsGetNextIdP (0x02)</p>
+       </ul>
+      <li data-md>
+       <p>Authenticator on receiving such enumerateIdPsGetNextIdP subCommand returns authenticatorFederationManagement response with following parameters:</p>
+       <ul>
+        <li data-md>
+         <p>idpId (0x01): Text String, the content of idpId.</p>
+       </ul>
+     </ul>
+   </ul>
+   <h3 class="heading settled" data-level="3.4" id="status-codes"><span class="secno">3.4. </span><span class="content">Status codes</span><a class="self-link" href="#status-codes"></a></h3>
+   <figure class="table" id="statusCodes">
+    <table class="complex data longlastcol">
+     <tbody>
+      <tr>
+       <th>Code
+       <th>Name
+       <th>Description
+      <tr>
+       <td>0xE1
+       <td><dfn class="dfn-paneled" data-dfn-type="dfn" data-noexport id="ctap2_err_no_idps">CTAP2_ERR_NO_IDPS</dfn>
+       <td>There are no available IdP.
+    </table>
+   </figure>
   </main>
   <div data-fill-with="conformance">
    <h2 class="no-ref no-num heading settled" id="conformance"><span class="content"> Conformance</span><a class="self-link" href="#conformance"></a></h2>
@@ -2431,28 +2601,22 @@ The federation entity is typically a endpoint refrencing an identity provider, e
   <h2 class="no-num no-ref heading settled" id="index"><span class="content">Index</span><a class="self-link" href="#index"></a></h2>
   <h3 class="no-num no-ref heading settled" id="index-defined-here"><span class="content">Terms defined by this specification</span><a class="self-link" href="#index-defined-here"></a></h3>
   <ul class="index">
+   <li><a href="#ctap2_err_no_idps">CTAP2_ERR_NO_IDPS</a><span>, in § 3.4</span>
+   <li><a href="#fm">fm</a><span>, in § 3.2</span>
    <li><a href="#idpid-value">idpId value</a><span>, in § 3.1.1</span>
-  </ul>
-  <h3 class="no-num no-ref heading settled" id="index-defined-elsewhere"><span class="content">Terms defined by reference</span><a class="self-link" href="#index-defined-elsewhere"></a></h3>
-  <ul class="index">
-   <li>
-    <a data-link-type="biblio">[FIDO-CTAP: URLPREFIX: HTTPS://FIDOALLIANCE.ORG/SPECS/FIDO-V2.1-PS-20210615/FIDO-CLIENT-TO-AUTHENTICATOR-PROTOCOL-V2.1-PS-ERRATA-20220621.HTML]</a> defines the following terms:
-    <ul>
-     <li><span class="dfn-paneled" id="0fa21d4e">discoverable credentials</span>
-    </ul>
+   <li><a href="#subcommand">subCommand</a><span>, in § 3.3</span>
   </ul>
   <h2 class="no-num no-ref heading settled" id="references"><span class="content">References</span><a class="self-link" href="#references"></a></h2>
   <h3 class="no-num no-ref heading settled" id="normative"><span class="content">Normative References</span><a class="self-link" href="#normative"></a></h3>
-  <dl>
-   <dt id="biblio-rfc2119">[RFC2119]
-   <dd>S. Bradner. <a href="https://datatracker.ietf.org/doc/html/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. March 1997. Best Current Practice. URL: <a href="https://datatracker.ietf.org/doc/html/rfc2119">https://datatracker.ietf.org/doc/html/rfc2119</a>
-  </dl>
-  <h3 class="no-num no-ref heading settled" id="informative"><span class="content">Informative References</span><a class="self-link" href="#informative"></a></h3>
   <dl>
    <dt id="biblio-awayf">[AWAYF]
    <dd>Erwin Kupris; et al. <cite>A-WAYF: Automated Where Are You From in Multilateral Federations</cite>. 
    <dt id="biblio-fido-ctap">[FIDO-CTAP]
    <dd>J. Bradley; et al. <a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html"><cite>Client to Authenticator Protocol (CTAP)</cite></a>. June 21, 2022. FIDO Alliance Proposed Standard. URL: <a href="https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html">https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html</a>
+   <dt id="biblio-openid">[OPENID]
+   <dd>R. Hedberg, Ed.; et al. <a href="https://openid.net/specs/openid-federation-1_0.html"><cite>OpenID Federation 1.0 - draft 33</cite></a>. URL: <a href="https://openid.net/specs/openid-federation-1_0.html">https://openid.net/specs/openid-federation-1_0.html</a>
+   <dt id="biblio-rfc2119">[RFC2119]
+   <dd>S. Bradner. <a href="https://datatracker.ietf.org/doc/html/rfc2119"><cite>Key words for use in RFCs to Indicate Requirement Levels</cite></a>. March 1997. Best Current Practice. URL: <a href="https://datatracker.ietf.org/doc/html/rfc2119">https://datatracker.ietf.org/doc/html/rfc2119</a>
   </dl>
 <script>/* Boilerplate: script-dom-helper */
 "use strict";
@@ -2654,8 +2818,10 @@ function parseHTML(markup) {
 "use strict";
 {
 let dfnPanelData = {
-"0fa21d4e": {"dfnID":"0fa21d4e","dfnText":"discoverable credentials","external":true,"refSections":[{"refs":[{"id":"ref-for-something"}],"title":"3.1.1. Feature detection"}],"url":"sctn-discoverable"},
-"idpid-value": {"dfnID":"idpid-value","dfnText":"idpId value","external":false,"refSections":[{"refs":[{"id":"ref-for-idpid-value"}],"title":"3.1.1. Feature detection"}],"url":"#idpid-value"},
+"ctap2_err_no_idps": {"dfnID":"ctap2_err_no_idps","dfnText":"CTAP2_ERR_NO_IDPS","external":false,"refSections":[{"refs":[{"id":"ref-for-ctap2_err_no_idps"},{"id":"ref-for-ctap2_err_no_idps\u2460"}],"title":"3.3.1. enumerateIdPBegin (0x01)"}],"url":"#ctap2_err_no_idps"},
+"fm": {"dfnID":"fm","dfnText":"fm","external":false,"refSections":[{"refs":[{"id":"ref-for-fm"}],"title":"3.3.1. enumerateIdPBegin (0x01)"}],"url":"#fm"},
+"idpid-value": {"dfnID":"idpid-value","dfnText":"idpId value","external":false,"refSections":[{"refs":[{"id":"ref-for-idpid-value"}],"title":"3.1.1. Feature detection"},{"refs":[{"id":"ref-for-idpid-value\u2460"}],"title":"3.3. authenticatorFederationManagement (0x42)"}],"url":"#idpid-value"},
+"subcommand": {"dfnID":"subcommand","dfnText":"subCommand","external":false,"refSections":[{"refs":[{"id":"ref-for-subcommand"}],"title":"3.3. authenticatorFederationManagement (0x42)"}],"url":"#subcommand"},
 };
 
 document.addEventListener("DOMContentLoaded", ()=>{
@@ -3044,8 +3210,10 @@ function genLinkingSyntaxes(dfn) {
 "use strict";
 {
 let refsData = {
+"#ctap2_err_no_idps": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"awayf","spec":"awayf-1","status":"local","text":"ctap2_err_no_idps","type":"dfn","url":"#ctap2_err_no_idps"},
+"#fm": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"awayf","spec":"awayf-1","status":"local","text":"fm","type":"dfn","url":"#fm"},
 "#idpid-value": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"awayf","spec":"awayf-1","status":"local","text":"idpid value","type":"dfn","url":"#idpid-value"},
-"sctn-discoverable": {"export":true,"for_":[],"level":"","normative":true,"shortname":"fido-ctap: urlprefix: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html","spec":"fido-ctap: urlprefix: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html","status":"anchor-block","text":"discoverable credentials","type":"dfn","url":"sctn-discoverable"},
+"#subcommand": {"export":true,"for_":[],"level":"1","normative":true,"shortname":"awayf","spec":"awayf-1","status":"local","text":"subcommand","type":"dfn","url":"#subcommand"},
 };
 
 function mkRefHint(link, ref) {
