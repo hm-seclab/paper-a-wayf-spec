@@ -1,0 +1,127 @@
+<pre class='metadata'>
+Title: A-WAYF: Automated Where Are You From
+Shortname: awayf
+Level: 1
+Status: LD
+Group: HMSECLAB
+Repository: https://github.com/hm-seclab/paper-a-wayf-spec
+URL: https://github.com/hm-seclab/paper-a-wayf-spec/spec/index.html
+Editor: D. P. Sugar, University of Applied Science Munich https://seclab.cs.hm.edu/, sugar@hm.edu 
+Abstract: Extension specification for Automated Where Are You From (A-WAYF)
+Complain About: accidental-2119 yes, missing-example-ids yes
+Markup Shorthands: markdown yes, css no
+</pre>
+
+<pre class="link-defaults">
+
+spec: dom; type: interface; for:/; text: Document
+
+</pre>
+
+<pre class="anchors">
+
+spec: FIDO-CTAP: urlPrefix: https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html
+    type: dfn
+        text: discoverable credentials; url: sctn-discoverable
+
+</pre>
+
+<pre class="link-defaults">
+spec:credential-management; type:dfn; text:credentials
+spec:html; type:dfn; for:environment settings object; text:global object
+spec:html; type:dfn; for:/; text:same site
+spec:infra; type:dfn; for:/; text:set
+spec:infra; type:dfn; text:list
+spec:infra; type:dfn; for:struct; text:item
+spec:infra; type:dfn; for:map; text:exists
+spec:url; type:dfn; text:domain
+spec:url; type:dfn; for:url; text:host
+spec:url; type:dfn; text:valid domain;
+spec:webidl; type:dfn; text:DOMString
+spec:webidl; type:dfn; text:USVString
+spec:webidl; type:interface; text:Promise
+</pre>
+
+<pre class=biblio>
+{
+  "FIDO-CTAP": {
+    "authors": ["J. Bradley", "J. Hodges", "M. B. Jones", "A. Kumar", "R. Lindemann", "J. Verrept"],
+    "title": "Client to Authenticator Protocol (CTAP)",
+    "href": "https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-errata-20220621.html",
+    "status": "FIDO Alliance Proposed Standard",
+    "date": "June 21, 2022"
+  },
+  "awayf": {
+    "authors": [
+        "Erwin Kupris",
+        "Tobias Hilbig",
+        "David Pierre Sugar",
+        "Thomas Schreck"
+    ],
+    "title": "A-WAYF: Automated Where Are You From in Multilateral Federations"
+  }
+}
+</pre>
+
+Introduction {#intro}
+=====================
+
+Introduction here.
+
+A-WAYF {#awayf}
+=====================
+
+CTAP2 Extensions {#ctap}
+=====================
+
+The following section introduces extensions for [[FIDO-CTAP]] that enable an authenticator to support the Automated Wherer Are You From [[AWAYF]] protocol.
+
+## Enterprise Federation (enterpriseFed) ## {#enterpriseFed}
+
+### Feature detection ### {#eFedFD}
+
+: Extension identifier
+:: enterpriseFed
+
+This registration extension allows relying parties to specify an federation entity when creating a credential.
+The federation entity is typically a endpoint refrencing an identity provider, e.g., `https://sso.hm.edu`.
+
+Authenticators supporting [=discoverable credentials=] SHOULD process this extension and persist the [=idpId value=] with the credential.
+
+Relying parties belonging to a federation SHOULD use this extension to establish a relationship between a credentail and the federation the relying party belongs to.
+
+: Client extension input
+:: `create()`: A single USVString specifying the end-point of an identity provider.
+    <pre>
+    partial dictionary AuthenticationExtensionsClientInputs {
+        USVString idpId;
+    };
+    </pre>
+
+: Client extension processing
+:: If this extension is present in an authenticatorMakeCredential request:
+    1. Verify that the idpId string value is a valid URL.
+
+: Client extension output
+:: None. Authenticator returns the result in the authenticator extension output.
+
+: Authenticator extension input
+:: Forward the idpId value directly to the authenticator.
+
+The platform sends the authenticatorMakeCredential request with the following CBOR map entry in the "extensions" field to the authenticator:
+
+* "idpId": URL
+
+<pre class="example" highlight="js">
+{
+    ...
+    6: {"idpId": "https://sso.hm.edu"},
+    ...
+}
+</pre>
+
+: Authenticator extension processing
+:: <dfn dfn>idpId value</dfn> is presisted with the credential.
+
+
+
