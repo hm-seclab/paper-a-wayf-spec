@@ -2,7 +2,7 @@
 Title: A-WAYF: Automated Where Are You From
 Shortname: awayf
 Level: 1
-Status: LD
+Status: DREAM
 Group: HMSECLAB
 Repository: https://github.com/hm-seclab/paper-a-wayf-spec
 URL: https://github.com/hm-seclab/paper-a-wayf-spec/spec/index.html
