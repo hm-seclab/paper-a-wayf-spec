@@ -396,58 +396,109 @@ fn resolveTrustChain(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
 }
 
 fn resolveTrustChain2(node: []const u8, a: std.mem.Allocator) !jwt.JWS {
-    if (std.mem.eql(u8, node, "http://op.a-wayf.local:8002/oidc/op")) {
-        // +++++++++++++++++++++++++++++++++++++++++++
-        // Fetch entity statement including trust chain
-        // +++++++++++++++++++++++++++++++++++++++++++
+    // +++++++++++++++++++++++++++++++++++++++++++
+    // Fetch jwt containing the authority
+    // +++++++++++++++++++++++++++++++++++++++++++
+    var well_known_url = std.ArrayList(u8).init(a);
+    defer well_known_url.deinit();
+    try well_known_url.appendSlice(node);
+    try well_known_url.appendSlice("/.well-known/openid-federation");
+    try well_known_url.append(0);
 
-        // curl easy handle init, or fail
-        const handle = cURL.curl_easy_init() orelse return error.CURLHandleInitFailed;
-        defer cURL.curl_easy_cleanup(handle);
+    const well_known = try execCurl(well_known_url.items, a);
+    defer a.free(well_known);
 
-        var response_buffer = std.ArrayList(u8).init(a);
-        errdefer response_buffer.deinit();
+    const well_known_statement = try jwt.JWS.fromSlice(well_known, a);
+    defer well_known_statement.deinit(a);
 
-        //const url = try std.fmt.allocPrint(a, "{s}resolve?sub={s}&anchor={s}", .{ node, node, "https://trust-anchor.testbed.oidcfed.incubator.geant.org/" });
-        //defer a.free(url);
-        // TODO: hard coded values aint good...
-        const url = "http://op.a-wayf.local:8002/oidc/op/resolve?sub=http://op.a-wayf.local:8002/oidc/op&anchor=http://ta.a-wayf.local:8000";
-        //const url = "http://0.0.0.0:8002/oidc/op/resolve?sub=http://0.0.0.0:8002/oidc/op&anchor=http://0.0.0.0:8000";
-        if (verbose)
-            std.log.info("requesting statement via: {s}", .{url});
+    var resolve_uri = std.ArrayList(u8).init(a);
+    defer resolve_uri.deinit();
 
-        // setup curl options
-        if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, url.ptr) != cURL.CURLE_OK)
-            return error.CouldNotSetURL;
-
-        // set write function callbacks
-        if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEFUNCTION, writeToArrayListCallback) != cURL.CURLE_OK)
-            return error.CouldNotSetWriteCallback;
-        if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEDATA, &response_buffer) != cURL.CURLE_OK)
-            return error.CouldNotSetWriteCallback;
-
-        // perform
-        if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
-            return error.FailedToPerformRequest;
-
-        if (verbose)
-            std.log.info("statement: {s}", .{response_buffer.items});
-
-        // +++++++++++++++++++++++++++++++++++++++++++
-        // Now access trust chain and return it
-        // +++++++++++++++++++++++++++++++++++++++++++
-
-        const statement = try jwt.JWS.fromSlice(response_buffer.items, a);
-        errdefer statement.deinit(a);
-
-        if (statement.payload.trust_chain == null) {
-            return error.MissingTrustChain;
+    if (well_known_statement.payload.metadata) |meta| {
+        if (meta.federation_entity.federation_resolve_endpoint) |endpoint| {
+            try resolve_uri.appendSlice(endpoint);
+            if (verbose) std.log.info("resolve endpoint = {s}", .{endpoint});
+        } else {
+            return error.MissingResolveEndpoint;
         }
 
-        return statement;
+        if (meta.federation_entity.organization_name) |name| {
+            if (verbose) std.log.info("name = {s}", .{name});
+        }
     } else {
-        return error.NotFound;
+        return error.MissingMetadata;
     }
+
+    try resolve_uri.appendSlice("?sub=");
+    try resolve_uri.appendSlice(node);
+    try resolve_uri.appendSlice("&anchor=");
+
+    if (well_known_statement.payload.authority_hints) |authorities| {
+        if (authorities.len == 0) return error.NoAuthorities;
+        // We just use the first authority available
+        // TODO: how to handle this?
+        try resolve_uri.appendSlice(authorities[0]);
+    } else {
+        return error.MissingAuthority;
+    }
+
+    try resolve_uri.append(0);
+
+    if (verbose)
+        std.log.info("resolve uri : {s}", .{resolve_uri.items});
+
+    // +++++++++++++++++++++++++++++++++++++++++++
+    // Fetch entity statement including trust chain
+    // +++++++++++++++++++++++++++++++++++++++++++
+
+    //const url = "http://op.a-wayf.local:8002/oidc/op/resolve?sub=http://op.a-wayf.local:8002/oidc/op&anchor=http://ta.a-wayf.local:8000";
+    const token = try execCurl(resolve_uri.items, a);
+    defer a.free(token);
+
+    if (verbose)
+        std.log.info("statement: {s}", .{token});
+
+    // +++++++++++++++++++++++++++++++++++++++++++
+    // Now access trust chain and return it
+    // +++++++++++++++++++++++++++++++++++++++++++
+
+    const statement = try jwt.JWS.fromSlice(token, a);
+    errdefer statement.deinit(a);
+
+    if (statement.payload.trust_chain == null) {
+        return error.MissingTrustChain;
+    }
+
+    return statement;
+}
+
+fn execCurl(uri: []const u8, a: std.mem.Allocator) ![]const u8 {
+    // curl easy handle init, or fail
+    const handle = cURL.curl_easy_init() orelse return error.CURLHandleInitFailed;
+    defer cURL.curl_easy_cleanup(handle);
+
+    var response_buffer = std.ArrayList(u8).init(a);
+    errdefer response_buffer.deinit();
+
+    //const url = "http://0.0.0.0:8002/oidc/op/resolve?sub=http://0.0.0.0:8002/oidc/op&anchor=http://0.0.0.0:8000";
+    if (verbose)
+        std.log.info("requesting statement via: {s}", .{uri});
+
+    // setup curl options
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_URL, uri.ptr) != cURL.CURLE_OK)
+        return error.CouldNotSetURL;
+
+    // set write function callbacks
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEFUNCTION, writeToArrayListCallback) != cURL.CURLE_OK)
+        return error.CouldNotSetWriteCallback;
+    if (cURL.curl_easy_setopt(handle, cURL.CURLOPT_WRITEDATA, &response_buffer) != cURL.CURLE_OK)
+        return error.CouldNotSetWriteCallback;
+
+    // perform
+    if (cURL.curl_easy_perform(handle) != cURL.CURLE_OK)
+        return error.FailedToPerformRequest;
+
+    return response_buffer.toOwnedSlice();
 }
 
 fn writeToArrayListCallback(data: *anyopaque, size: c_uint, nmemb: c_uint, user_data: *anyopaque) callconv(.C) c_uint {

@@ -66,10 +66,10 @@ exit 0
 
 ## Server
 
-First install docker compose:
+First [setup Dockers apt repository](https://docs.docker.com/engine/install/ubuntu/#install-using-the-repository) and then install docker compose:
 
 ```
-sudo apt install docker-compose-plugin
+sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
 Then clone the [django server](https://github.com/hm-seclab/awayf-spid-cie-oidc-django?tab=readme-ov-file#docker-compose) and build the docker container:

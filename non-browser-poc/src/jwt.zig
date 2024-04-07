@@ -119,7 +119,7 @@ pub const ClaimSet = struct {
     authority_hints: ?[]const []const u8 = null,
     // Object with protocol-specific claims that represent the Entity's Types within its federations
     // and metadata for those Entity Types
-    //metadata: ?Metadata = null,
+    metadata: ?Metadata = null,
     /// List of statements...
     trust_chain: ?[]const []const u8 = null,
 
@@ -136,9 +136,9 @@ pub const ClaimSet = struct {
             }
             a.free(ah);
         }
-        //if (self.metadata) |metadata| {
-        //    metadata.deinit();
-        //}
+        if (self.metadata) |metadata| {
+            metadata.deinit(a);
+        }
         if (self.trust_chain) |tc| {
             for (tc) |e| {
                 a.free(e);
@@ -148,47 +148,25 @@ pub const ClaimSet = struct {
     }
 };
 
+// Here we use just some fields relevant for showcasing A-WAYF
 pub const Metadata = struct {
-    openid_provider: ?struct {
-        /// Array specifying the federation types supported.
-        ///
-        /// * "automatic"
-        /// * "explicit"
-        client_registration_types_supported: []const []const u8,
-        /// URL of the OP's federation-specific Dynamic Client Registration Endpoint.
-        federation_registration_endpoint: ?[]const u8 = null,
-        issuer: ?[]const u8 = null,
-        signed_jwks_uri: ?[]const u8 = null,
-        authorization_endpoint: ?[]const u8 = null,
-        request_parameter_supported: ?bool = null,
-        /// * "authorization_code"
-        /// * "implicit"
-        /// * "urn:ietf:params:oauth:grant-type:jwt-bearer"
-        grant_types_supported: ?[]const []const u8 = null,
-        /// * "ES256"
-        id_token_signing_alg_values_supported: ?[]const []const u8 = null,
-        logo_uri: ?[]const u8 = null,
-        op_policy_uri: ?[]const u8 = null,
-        /// * "code"
-        /// * "code id_token"
-        /// * "token"
-        response_types_supported: ?[]const []const u8 = null,
-        /// * "pairwise"
-        /// * "public"
-        subject_types_supported: ?[]const []const u8 = null,
-        token_endpoint: ?[]const u8 = null,
-        /// * "client_secret_post"
-        /// * "client_secret_basic"
-        /// * "client_secret_jwt"
-        /// * "private_key_jwt"
-        token_endpoint_auth_methods_supported: ?[]const []const u8 = null,
-    } = null,
-    federation_entity: ?struct {
-        contacts: ?[]const u8 = null,
-        federation_fetch_endpoint: ?[]const u8 = null,
-        homepage_uri: ?[]const u8 = null,
+    federation_entity: struct {
+        // This endpoint is mandatory for resolving the trust chain based on the idpId.
+        federation_resolve_endpoint: ?[]const u8 = null,
+        // The organization name together with a logo can be displayed to the user
+        // after the trust validation step.
         organization_name: ?[]const u8 = null,
-    } = null,
+        logo_uri: ?[]const u8 = null,
+    },
+
+    pub fn deinit(self: *const @This(), a: Allocator) void {
+        if (self.federation_entity.organization_name) |name| {
+            a.free(name);
+        }
+        if (self.federation_entity.logo_uri) |uri| {
+            a.free(uri);
+        }
+    }
 };
 
 /// JSON Web Key (JWK)
