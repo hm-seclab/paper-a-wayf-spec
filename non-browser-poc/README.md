@@ -11,6 +11,8 @@ The following dependencies are required to build the project:
     * Ubuntu: `sudo apt install libcurl4-gnutls-dev`
 * OpenSSL (RS256 support)
     * Ubuntu: `sudo apt install libssl-dev`
+* udev for client
+    * Ubuntu: `sudo apt install libudev-dev`
 
 After you've installed all required dependencies run `zig build` to
 build the authenticator and client executables. The executables will
