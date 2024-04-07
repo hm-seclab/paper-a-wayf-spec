@@ -72,6 +72,12 @@ First [setup Dockers apt repository](https://docs.docker.com/engine/install/ubun
 sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 ```
 
+Add the following line to `/etc/hosts`:
+
+```
+0.0.0.0 ta.a-wayf.local rp.a-wayf.local op.a-wayf.local
+```
+
 Then clone the [django server](https://github.com/hm-seclab/awayf-spid-cie-oidc-django?tab=readme-ov-file#docker-compose) and build the docker container:
 
 ```
@@ -79,12 +85,6 @@ git clone https://github.com/hm-seclab/awayf-spid-cie-oidc-django.git
 cd awayf-spid-cie-oidc-django
 bash docker-prepare.sh
 sudo docker compose up
-```
-
-Finally, add the following line to `/etc/hosts`:
-
-```
-0.0.0.0 ta.a-wayf.local rp.a-wayf.local op.a-wayf.local
 ```
 
 ## Client
