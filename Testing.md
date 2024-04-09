@@ -50,9 +50,7 @@
     - In our PoC, this results in a single candidate IdP with the idpId="http://op.a-wayf.local:8002/oidc/op"
 - Trust Resolve (4):
     - The client then issues a request to http://op.a-wayf.local:8002/oidc/op/.well-known/openid-federation
-        - This request is skipped in the PoC
     - The response includeds "federation_resolve_endpoint": "http://op.a-wayf.local:8002/oidc/op/resolve"
-        - This response is mocked in the PoC
     - The subsequent request to resolve the trust is as follows: http://op.a-wayf.local:8002/oidc/op/resolve?sub=http://op.a-wayf.local:8002/oidc/op&anchor=http://ta.a-wayf.local:8000
     - The endpoint responds with a JWT containing the trust chain from the OP to the TA, represented by three entity statements:
         - The OP's entity configuration
